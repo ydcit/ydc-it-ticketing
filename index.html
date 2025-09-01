@@ -1,0 +1,946 @@
+<!DOCTYPE html> 
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <base href="<?= ScriptApp.getService().getUrl() ?>" target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>Dashboard – YNGEN IT Ticketing</title>
+
+  <!-- Bootstrap 5 CSS -->
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  />
+  <!-- Bootstrap Icons -->
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.3/font/bootstrap-icons.css"
+    rel="stylesheet"
+  />
+  <!-- Font Awesome -->
+  <link
+    href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    rel="stylesheet"
+  />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    /* ========= Sidebar ========= */
+    body {
+      margin: 0;
+      font-family: 'Inter', sans-serif;
+      background: #f5f7fa;
+      color: #212529;
+    }
+    .sidebar {
+      position: fixed; top: 0; left: 0;
+      width: 60px; height: 100vh;
+      background: #343a40;
+      overflow-x: hidden;
+      transition: width 0.3s;
+      z-index: 1000;
+    }
+    .sidebar:hover { width: 200px; }
+    .sidebar .logo {
+      text-align: center;
+      padding: 16px 0;
+    }
+    .sidebar .logo img { max-width: 32px; }
+    .sidebar nav {
+      display: flex; flex-direction: column;
+    }
+    .sidebar .nav-link {
+      display: flex; align-items: center;
+      color: #fff; padding: 12px 16px;
+      text-decoration: none; white-space: nowrap;
+      transition: background 0.2s;
+    }
+    .sidebar .nav-link:hover,
+    .sidebar .nav-link.active {
+      background: #495057;
+    }
+    .sidebar .nav-link i {
+      font-size: 1.5rem;
+      width: 24px;
+      margin-right: 12px;
+    }
+    .sidebar .nav-link span {
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .sidebar:hover .nav-link span {
+      opacity: 1;
+    }
+    .sidebar .divider {
+      border-top:1px solid #495057;
+      margin:8px auto;
+      width:60%;
+    }
+
+    /* ============= Main Content ============= */
+    .content {
+      margin-left: 60px;
+      transition: margin-left 0.3s;
+      padding: 20px 40px;
+    }
+    .sidebar:hover + .content {
+      margin-left: 200px;
+    }
+
+    /* Topbar */
+    .topbar {
+      background: #fff;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      margin-bottom: 1.5rem;
+      padding: .75rem 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .search-container {
+      position: relative;
+      flex: 1; max-width: 400px;
+    }
+    #search-suggestions {
+      position: absolute;
+      top: 100%; left: 0; right: 0;
+      z-index: 1000;
+    }
+    .search-container .form-control {
+      border: none; box-shadow: none;
+    }
+    .search-container .form-control:focus {
+      outline: none; box-shadow: none;
+    }
+
+    /* Card base style + entrance animation initial state */
+    .card {
+      border: none;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+      margin-bottom: 1rem;
+      overflow: hidden;
+      background: #fff;
+      color: #212529;
+      opacity: 0;
+      transform: translateX(100px);
+      transition: opacity 0.5s ease-out, transform 0.5s ease-out;
+    }
+    .card.animate-in {
+      opacity: 1;
+      transform: translateX(0);
+    }
+    .card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.10);
+    }
+
+    /* KPI summary cards */
+    .kpi-card {
+      padding: 1rem;
+      position: relative;
+      background: #fff;
+    }
+    .kpi-card .icon {
+      font-size: 1.75rem;
+      color: #6c757d;
+      position: absolute;
+      top: 1rem; left: 1rem;
+    }
+    .kpi-card .title {
+      color: #6c757d;
+      font-size: .875rem;
+      margin-top: 2.5rem;
+    }
+    .kpi-card .value {
+      font-size: 2rem;
+      font-weight: 600;
+      margin: .25rem 0;
+    }
+    .kpi-card .subtitle {
+      font-size: .75rem;
+      color: #adb5bd;
+    }
+    .kpi-card .trend {
+      font-size: .75rem;
+      display: inline-flex;
+      align-items: center;
+      margin-top: .25rem;
+    }
+    .kpi-card .trend.up { color: #1cc88a; }
+    .kpi-card .trend.down { color: #e74a3b; }
+    .kpi-card .trend i {
+      margin-right: 4px;
+    }
+
+    /* Section headers */
+    .section-title {
+      font-size: 1.125rem;
+      font-weight: 600;
+      margin-bottom: .75rem;
+    }
+
+    /* Status-type cards */
+    .status-card {
+      padding: 1rem;
+      text-align: center;
+      background: #fff;
+    }
+    .status-card .status-icon {
+      font-size: 1.5rem;
+      color: #2563EB;
+      margin-bottom: .5rem;
+    }
+    .status-card .status-title {
+      color: #6c757d;
+      font-size: .875rem;
+      margin-bottom: .5rem;
+    }
+    .status-card .status-value {
+      font-size: 1.5rem;
+      font-weight: 600
+    }
+    .status-card .status-trend-row {
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .status-card .status-trend-row small {
+      font-size: .75rem; color: #adb5bd;
+    }
+    .status-card .status-trend {
+      font-size: .75rem; display: inline-flex; align-items: center;
+    }
+    .status-card .status-trend.up { color: #1E3A8A; }
+    .status-card .status-trend.down { color: #60A5FA; }
+    .status-card .status-trend i {
+      margin-right: 4px;
+    }
+
+    /* Chart header */
+    .chart-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 1rem;
+    }
+    .chart-header select {
+      width: auto;
+    }
+
+    /* Custom range picker */
+    #custom-range {
+      display: none; margin-bottom: 1rem;
+    }
+    #custom-range input {
+      width: auto; display: inline-block;
+    }
+
+    /* Fixed-height wrappers for specific charts */
+    .chart-fixed-height {
+      position: relative; width: 100%; height: 450px;
+    }
+    .chart-fixed-height canvas {
+      position: absolute; top: 0; left: 0;
+      width: 100% !important; height: 100% !important;
+    }
+
+    /* Dark mode */
+    body.dark-mode {
+      background: #121212; color: #e0e0e0;
+    }
+    body.dark-mode .content {
+      background: #121212;
+    }
+    body.dark-mode .topbar {
+      background: #1f1f1f;
+    }
+    body.dark-mode .sidebar {
+      background: #1f1f1f;
+    }
+    body.dark-mode .card {
+      background: #1e1e1e; color: #e0e0e0;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.7);
+    }
+    body.dark-mode .form-control {
+      background: #2c2c2c; color: #e0e0e0; border-color: #444;
+    }
+    body.dark-mode .input-group-text {
+      background: #2c2c2c; border-color: #444; color: #e0e0e0;
+    }
+    body.dark-mode .list-group-item {
+      background: #2c2c2c; color: #e0e0e0;
+    }
+  </style>
+
+</head>
+<body>
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="logo">
+      <img
+        src="https://res.cloudinary.com/dbi3vgnnj/image/upload/v1746686322/YDC_Logo_1_orjbaj.png"
+        alt="YNGEN"
+      />
+    </div>
+    <nav>
+      <a class="nav-link active" href="?page=index">
+        <i class="fa fa-pie-chart"></i><span>Dashboard</span>
+      </a>
+      <a class="nav-link" href="?page=createTicket">
+        <i class="fa-solid fa-ticket"></i><span>Create Ticket</span>
+      </a>
+      <a class="nav-link" href="?page=searchStatus">
+        <i class="fa-solid fa-magnifying-glass"></i><span>Search Status</span>
+      </a>
+      <a class="nav-link" href="?page=ithub">
+        <i class="fa-solid fa-circle-info"></i><span>IT How-To Hub</span>
+      </a>
+      <div class="divider"></div>
+      <a class="nav-link" href="?page=updateStatus">
+        <i class="fa-solid fa-pen-to-square"></i><span>Update Ticket</span>
+      </a>
+    </nav>
+  </div>
+
+  <!-- Main content -->
+  <div class="content">
+    <!-- Topbar -->
+    <div class="topbar">
+      <div class="search-container">
+        <div class="input-group">
+          <span class="input-group-text bg-white border-0">
+            <i class="bi bi-search"></i>
+          </span>
+          <input
+            id="search-input"
+            type="text"
+            class="form-control"
+            placeholder="Search"
+            autocomplete="off"
+          />
+        </div>
+        <div id="search-suggestions" class="list-group"></div>
+      </div>
+      <div class="d-flex align-items-center ms-4">
+        <i class="bi bi-sun-fill fs-5 me-3" id="dark-mode-toggle"></i>
+        <div class="d-flex align-items-center">
+          <span class="me-2">Admin</span>
+          <img src="https://via.placeholder.com/32" class="rounded-circle"/>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======== KPI Summary ======== -->
+    <div class="row gx-3 mb-4">
+      <div class="col-md-4 col-lg-2">
+        <div class="card kpi-card"><i class="bi bi-ticket-perforated icon"></i>
+          <div class="title">Total Tickets</div><div class="value" id="kpi-total">0</div>
+          <div class="subtitle">From last month</div>
+          <div class="trend up"><i class="bi bi-arrow-up-right-circle-fill"></i><span>0%</span></div>
+        </div>
+      </div>
+      <div class="col-md-4 col-lg-2">
+        <div class="card kpi-card"><i class="bi bi-folder-check icon"></i>
+          <div class="title">Open Tickets</div><div class="value" id="kpi-open">0</div>
+          <div class="subtitle">From last week</div>
+          <div class="trend down"><i class="bi bi-arrow-down-right-circle-fill"></i><span>0%</span></div>
+        </div>
+      </div>
+      <div class="col-md-4 col-lg-2">
+        <div class="card kpi-card"><i class="bi bi-exclamation-octagon icon"></i>
+          <div class="title">Critical Tickets</div><div class="value" id="kpi-critical">0</div>
+          <div class="subtitle">From last week</div>
+          <div class="trend up"><i class="bi bi-arrow-up-right-circle-fill"></i><span>0%</span></div>
+        </div>
+      </div>
+      <div class="col-md-4 col-lg-2">
+        <div class="card kpi-card"><i class="bi bi-hourglass-split icon"></i>
+          <div class="title">Pending Approvals</div><div class="value" id="kpi-pending">0</div>
+          <div class="subtitle">From yesterday</div>
+          <div class="trend up"><i class="bi bi-arrow-up-right-circle-fill"></i><span>0%</span></div>
+        </div>
+      </div>
+      <div class="col-md-4 col-lg-2">
+        <div class="card kpi-card"><i class="bi bi-calendar-event icon"></i>
+          <div class="title">Avg / Month</div><div class="value" id="kpi-avgMonth">0</div>
+          <div class="subtitle">From last year</div>
+          <div class="trend up"><i class="bi bi-arrow-up-right-circle-fill"></i><span>0%</span></div>
+        </div>
+      </div>
+      <div class="col-md-4 col-lg-2">
+        <div class="card kpi-card"><i class="bi bi-calendar2-week icon"></i>
+          <div class="title">Avg / Year</div><div class="value" id="kpi-avgYear">0</div>
+          <div class="subtitle">From 2 years ago</div>
+          <div class="trend down"><i class="bi bi-arrow-down-right-circle-fill"></i><span>0%</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======== Tickets by Status ======== -->
+    <div class="row gx-3 mb-4 align-items-stretch" id="tickets-status">
+      <div class="col-lg-6 d-flex">
+        <div class="card p-4 flex-fill">
+          <div class="section-title">Tickets by Status</div>
+          <canvas id="chart-status" style="height:450px;"></canvas>
+        </div>
+      </div>
+      <div class="col-lg-6 d-flex">
+        <div class="row gx-3 gy-3 flex-fill">
+          <div class="col-6">
+            <div class="card status-card"><div class="status-icon"><i class="bi bi-check-circle-fill"></i></div>
+              <div class="status-title">Completed</div><div class="status-value" id="status-completed">0</div>
+              <div class="status-trend-row"><small>From yesterday</small>
+                <div class="status-trend up"><i class="bi bi-arrow-up-right-circle-fill"></i><span>0</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="card status-card"><div class="status-icon"><i class="bi bi-arrow-repeat"></i></div>
+              <div class="status-title">In Progress</div><div class="status-value" id="status-progress">0</div>
+              <div class="status-trend-row"><small>From yesterday</small>
+                <div class="status-trend up"><i class="bi bi-arrow-up-right-circle-fill"></i><span>0</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="card status-card"><div class="status-icon"><i class="bi bi-pause-circle-fill"></i></div>
+              <div class="status-title">On Hold</div><div class="status-value" id="status-hold">0</div>
+              <div class="status-trend-row"><small>From yesterday</small>
+                <div class="status-trend down"><i class="bi bi-arrow-down-right-circle-fill"></i><span>0</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="card status-card"><div class="status-icon"><i class="bi bi-x-circle-fill"></i></div>
+              <div class="status-title">Canceled</div><div class="status-value" id="status-canceled">0</div>
+              <div class="status-trend-row"><small>From yesterday</small>
+                <div class="status-trend down"><i class="bi bi-arrow-down-right-circle-fill"></i><span>0</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="card status-card"><div class="status-icon"><i class="bi bi-clipboard-data"></i></div>
+              <div class="status-title">Incident Tickets</div><div class="status-value" id="status-incident">0</div>
+              <div class="status-trend-row"><small>From yesterday</small>
+                <div class="status-trend up"><i class="bi bi-arrow-up-right-circle-fill"></i><span>0</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="col-6">
+            <div class="card status-card"><div class="status-icon"><i class="bi bi-list-task"></i></div>
+              <div class="status-title">Service Requests</div><div class="status-value" id="status-service">0</div>
+              <div class="status-trend-row"><small>From yesterday</small>
+                <div class="status-trend up"><i class="bi bi-arrow-up-right-circle-fill"></i><span>0</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======== Ticket Volume Over Time ======== -->
+    <div class="row gx-3 mb-4" id="ticket-volume">
+      <div class="col-12">
+        <div class="card p-4">
+          <div class="chart-header">
+            <div class="section-title">Ticket Volume Over Time</div>
+            <select id="ts-range" class="form-select form-select-sm">
+              <option value="Overall" selected>Overall</option>
+              <option value="Today">Today</option>
+              <option value="This Week">This Week</option>
+              <option value="This Month">This Month</option>
+              <option value="This Year">This Year</option>
+              <option value="Custom">Custom Range</option>
+            </select>
+          </div>
+          <div id="custom-range">
+            <input type="date" id="start-date" class="form-control form-control-sm d-inline-block"/>
+            <span class="mx-2">to</span>
+            <input type="date" id="end-date" class="form-control form-control-sm d-inline-block"/>
+            <button id="apply-range" class="btn btn-sm btn-primary ms-2">Apply</button>
+          </div>
+          <div class="chart-fixed-height">
+            <canvas id="chart-timeseries"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ======== Other Charts ======== -->
+    <div class="row gx-3 mb-4">
+      <div class="col-md-6">
+        <div class="card p-4" id="tickets-priority">
+          <div class="section-title">Tickets by Priority</div>
+          <canvas id="chart-priority"></canvas>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="card p-4" id="tickets-category">
+          <div class="section-title">Tickets by Category</div>
+          <canvas id="chart-category"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="row gx-3 mb-4">
+      <div class="col-md-6">
+        <div class="card p-4" id="tickets-lob">
+          <div class="section-title">Tickets by Line of Business</div>
+          <div class="chart-fixed-height">
+            <canvas id="chart-lob"></canvas>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="card p-4" id="tickets-site">
+          <div class="section-title">Tickets by Office Site</div>
+          <div class="chart-fixed-height">
+            <canvas id="chart-site"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="row gx-3 mb-4">
+      <div class="col-md-6">
+        <div class="card p-4" id="approval-breakdown">
+          <div class="section-title">Approval Status Breakdown</div>
+          <div class="chart-fixed-height">
+            <canvas id="chart-approval"></canvas>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="card p-4" id="request-type">
+          <div class="section-title">Request Type Distribution</div>
+          <div class="chart-fixed-height">
+            <canvas id="chart-requestType"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Bootstrap JS bundle -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script>
+    let statusChart, tsChart, priorityChart, categoryChart, lobChart, siteChart, approvalChart, requestChart;
+
+    document.addEventListener('DOMContentLoaded', () => {
+      google.script
+        .run
+        .withSuccessHandler(drawAll)
+        .getDashboardData('Overall', '', '');
+
+      const darkToggle = document.getElementById('dark-mode-toggle');
+      darkToggle.addEventListener('click', () => {
+        const isDark = document.body.classList.toggle('dark-mode');
+        darkToggle.classList.replace(
+          isDark ? 'bi-sun-fill' : 'bi-moon-fill',
+          isDark ? 'bi-moon-fill' : 'bi-sun-fill'
+        );
+        updateChartsForDarkMode(isDark);
+      });
+
+      const suggestions = [
+        { name: 'Tickets by Status', id: 'tickets-status' },
+        { name: 'Ticket Volume Over Time', id: 'ticket-volume' },
+        { name: 'Tickets by Priority', id: 'tickets-priority' },
+        { name: 'Tickets by Category', id: 'tickets-category' },
+        { name: 'Tickets by Line of Business', id: 'tickets-lob' },
+        { name: 'Tickets by Office Site', id: 'tickets-site' },
+        { name: 'Approval Status Breakdown', id: 'approval-breakdown' },
+        { name: 'Request Type Distribution', id: 'request-type' },
+      ];
+      const input = document.getElementById('search-input');
+      const box = document.getElementById('search-suggestions');
+      input.addEventListener('input', () => {
+        const v = input.value.trim().toLowerCase();
+        box.innerHTML = '';
+        if (!v) return;
+        suggestions.filter(s => s.name.toLowerCase().includes(v))
+          .forEach(s => {
+            const a = document.createElement('a');
+            a.href = '#';
+            a.className = 'list-group-item list-group-item-action';
+            a.textContent = s.name;
+            a.addEventListener('click', e => {
+              e.preventDefault();
+              document.getElementById(s.id).scrollIntoView({ behavior: 'smooth' });
+              box.innerHTML = '';
+              input.value = '';
+            });
+            box.appendChild(a);
+          });
+      });
+      document.addEventListener('click', e => {
+        if (!input.contains(e.target) && !box.contains(e.target)) {
+          box.innerHTML = '';
+        }
+      });
+    });
+
+    function updateChartsForDarkMode(isDark) {
+      const textColor = isDark ? '#e0e0e0' : '#212529';
+      const gridColor = isDark ? '#444' : undefined;
+      [statusChart, tsChart, priorityChart, categoryChart, lobChart, siteChart, approvalChart, requestChart]
+        .forEach(chart => {
+          if (!chart) return;
+          Object.values(chart.options.scales || {}).forEach(scale => {
+            if (scale.ticks) scale.ticks.color = textColor;
+            if (scale.grid) scale.grid.color = gridColor;
+          });
+          if (chart.options.plugins && chart.options.plugins.legend && chart.options.plugins.legend.labels) {
+            chart.options.plugins.legend.labels.color = textColor;
+          }
+          chart.update();
+        });
+    }
+
+    function drawAll(data) {
+      // KPI cards
+      document.getElementById('kpi-total').textContent    = data.totalTickets ?? 0;
+      document.getElementById('kpi-open').textContent     = data.openTickets ?? 0;
+      document.getElementById('kpi-critical').textContent = data.criticalTickets ?? 0;
+      document.getElementById('kpi-pending').textContent  = data.pendingApprovals ?? 0;
+      document.getElementById('kpi-avgMonth').textContent = data.avgPerMonth ?? 0;
+      document.getElementById('kpi-avgYear').textContent  = data.avgPerYear ?? 0;
+
+      // Status cards
+      const sc = data.statusCounts || {};
+      document.getElementById('status-completed').textContent = sc.Completed ?? 0;
+      document.getElementById('status-progress').textContent  = sc['In Progress'] ?? 0;
+      document.getElementById('status-hold').textContent      = sc['On Hold'] ?? 0;
+      document.getElementById('status-canceled').textContent  = sc.Canceled ?? 0;
+      document.getElementById('status-incident').textContent  = data.breakdowns.ticketCategory?.['Incident'] ?? 0;
+      document.getElementById('status-service').textContent   = data.breakdowns.ticketCategory?.['Service Request'] ?? 0;
+
+      // Helper functions
+      function hexToRgb(hex) {
+        const m = hex.match(/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i);
+        return m && [parseInt(m[1],16), parseInt(m[2],16), parseInt(m[3],16)];
+      }
+      function rgbToHex(r,g,b) {
+        return '#' + [r,g,b].map(x=>x.toString(16).padStart(2,'0')).join('');
+      }
+      function interpolate(c1,c2,f) {
+        const a = hexToRgb(c1), b = hexToRgb(c2);
+        return rgbToHex(
+          Math.round(a[0] + f*(b[0]-a[0])),
+          Math.round(a[1] + f*(b[1]-a[1])),
+          Math.round(a[2] + f*(b[2]-a[2]))
+        );
+      }
+      function generateGradientColors(n) {
+        const stops = ['#003366','#003F7D','#FF8E00','#FD7702','#FF5003'];
+        if (n <= stops.length) return stops.slice(0,n);
+        const colors = [];
+        const m = stops.length;
+        for (let i = 0; i < n; i++) {
+          const t = i/(n-1);
+          const scaled = t*(m-1);
+          const idx = Math.floor(scaled);
+          const frac = scaled - idx;
+          const c1 = stops[idx];
+          const c2 = stops[Math.min(idx+1, m-1)];
+          colors.push(interpolate(c1,c2,frac));
+        }
+        return colors;
+      }
+
+      // Tickets by Status chart
+      statusChart = new Chart(document.getElementById('chart-status'), {
+        type: 'bar',
+        data: {
+          labels: ['Open','Reopened','In Progress','On Hold','Completed','Canceled'],
+          datasets: [{
+            data: [
+              sc.Open ?? 0,
+              sc.Reopened ?? 0,
+              sc['In Progress'] ?? 0,
+              sc['On Hold'] ?? 0,
+              sc.Completed ?? 0,
+              sc.Canceled ?? 0
+            ],
+            backgroundColor: ['#1E3A8A','#2563EB','#3B82F6','#60A5FA','#93C5FD','#BFDBFE']
+          }]
+        },
+        options: {
+          responsive: true,
+          indexAxis: 'y',
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { beginAtZero: true, title: { display: true, text: 'Count' } },
+            y: { ticks: { autoSkip: false } }
+          }
+        }
+      });
+
+      // Ticket Volume Over Time chart
+      const ts = data.timeSeries || [];
+      const comp = data.timeSeriesCompleted || [];
+      const labelsTS = ts.map(pt=>pt.date);
+      const total = ts.map(pt=>pt.count);
+      const completed = comp.map(pt=>pt.count);
+      const maxT = Math.max(...total,1), maxC = Math.max(...completed,1);
+      const colorsT = total.map(v=>interpolate('#003366','#003F7D', v/maxT));
+      const colorsC = completed.map(v=>interpolate('#FF8E00','#FD7702', v/maxC));
+      tsChart = new Chart(document.getElementById('chart-timeseries'), {
+        type: 'line',
+        data: {
+          labels: labelsTS,
+          datasets: [
+            { label: 'Total Tickets', data: total, borderColor: colorsT, backgroundColor: 'transparent', fill: false, tension: 0.3, pointRadius: 4 },
+            { label: 'Completed Tickets', data: completed, borderColor: colorsC, backgroundColor: 'transparent', fill: false, tension: 0.3, pointRadius: 4 }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { position: 'bottom' } },
+          scales: {
+            x: { title: { display: true, text: 'Date' }, ticks: { autoSkip: true, maxRotation: 0, minRotation: 0 } },
+            y: { beginAtZero: true, title: { display: true, text: 'Count' } }
+          }
+        }
+      });
+
+      // Range filter
+      document.getElementById('ts-range').addEventListener('change', e=>{
+        const cr = document.getElementById('custom-range');
+        if(e.target.value==='Custom') cr.style.display='block';
+        else{ cr.style.display='none'; applyTimeFilter(e.target.value); }
+      });
+      document.getElementById('apply-range').addEventListener('click', ()=>{
+        const sd=document.getElementById('start-date').value, ed=document.getElementById('end-date').value;
+        if(sd&&ed) applyTimeFilter(new Date(sd), new Date(ed));
+      });
+      function applyTimeFilter(rangeOrStart, maybeEnd){
+        let start, end;
+        if(arguments.length===1){
+          const now=new Date();
+          switch(rangeOrStart){
+            case'Today': start=new Date(now.setHours(0,0,0,0)); break;
+            case'This Week': start=new Date(now.setDate(now.getDate()-6)); break;
+            case'This Month': start=new Date(now.getFullYear(),now.getMonth(),1); break;
+            case'This Year': start=new Date(now.getFullYear(),0,1); break;
+            default: start=null;
+          }
+          end=new Date();
+        } else { start=rangeOrStart; end=maybeEnd; }
+        const newL=[], newT=[], newC=[];
+        labelsTS.forEach((dStr,i)=>{
+          const d=new Date(dStr);
+          if((!start||d>=start)&&(!end||d<=end)){
+            newL.push(dStr);
+            newT.push(total[i]);
+            newC.push(completed[i]||0);
+          }
+        });
+        tsChart.data.labels=newL;
+        tsChart.data.datasets[0].data=newT;
+        tsChart.data.datasets[1].data=newC;
+        tsChart.update();
+      }
+
+      // Tickets by Priority
+      priorityChart = new Chart(document.getElementById('chart-priority'), {
+        type: 'bar',
+        data: {
+          labels: Object.keys(data.breakdowns.priorityLevel),
+          datasets: [{
+            data: Object.values(data.breakdowns.priorityLevel),
+            backgroundColor: generateGradientColors(Object.values(data.breakdowns.priorityLevel).length)
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { title: { display: true, text: 'Priority' } },
+            y: { beginAtZero: true, title: { display: true, text: 'Count' } }
+          }
+        }
+      });
+
+      // Tickets by Category
+      categoryChart = new Chart(document.getElementById('chart-category'), {
+        type: 'bar',
+        data: {
+          labels: Object.keys(data.breakdowns.ticketCategory),
+          datasets: [{
+            data: Object.values(data.breakdowns.ticketCategory),
+            backgroundColor: generateGradientColors(Object.values(data.breakdowns.ticketCategory).length)
+          }]
+        },
+        options: {
+          responsive: true,
+          indexAxis: 'y',
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { beginAtZero: true, title: { display: true, text: 'Count' } },
+            y: { title: { display: true, text: 'Category' } }
+          }
+        }
+      });
+
+      // Tickets by Line of Business
+      lobChart = new Chart(document.getElementById('chart-lob'), {
+        type: 'bar',
+        data: {
+          labels: Object.keys(data.breakdowns.lineOfBusiness),
+          datasets: [{
+            data: Object.values(data.breakdowns.lineOfBusiness),
+            backgroundColor: generateGradientColors(Object.values(data.breakdowns.lineOfBusiness).length)
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          indexAxis: 'y',
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { beginAtZero: true, title: { display: true, text: 'Count' } },
+            y: { title: { display: true, text: 'Line of Business' } }
+          }
+        }
+      });
+
+      // Tickets by Office Site
+      siteChart = new Chart(document.getElementById('chart-site'), {
+        type: 'bar',
+        data: {
+          labels: Object.keys(data.breakdowns.officeSite),
+          datasets: [{
+            data: Object.values(data.breakdowns.officeSite),
+            backgroundColor: generateGradientColors(Object.values(data.breakdowns.officeSite).length)
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { beginAtZero: true, title: { display: true, text: 'Count' } },
+            y: { title: { display: true, text: 'Office Site' } }
+          }
+        }
+      });
+
+      // Approval Status Breakdown (doughnut) — updated legend to respect dark mode
+      const asL = Object.keys(data.statusCounts), asD = Object.values(data.statusCounts);
+      let apColors = generateGradientColors(asD.length);
+      apColors[asD.indexOf(Math.max(...asD))] = '#002347';
+      approvalChart = new Chart(document.getElementById('chart-approval'), {
+        type: 'doughnut',
+        data: { labels: asL, datasets: [{ data: asD, backgroundColor: apColors }] },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'right',
+              labels: {
+                color: '#212529',
+                generateLabels: chart => {
+                  const data = chart.data;
+                  const ds = data.datasets[0];
+                  const total = ds.data.reduce((sum, v) => sum + v, 0);
+                  const meta = chart.getDatasetMeta(0);
+                  const textColor = chart.options.plugins.legend.labels.color;
+                  return data.labels.map((label, i) => {
+                    const value = ds.data[i] || 0;
+                    const pct = total ? ((value / total * 100).toFixed(1) + '%') : '0%';
+                    const style = meta.controller.getStyle ? meta.controller.getStyle(i) : {};
+                    return {
+                      text: `${label}: ${value} (${pct})`,
+                      fillStyle: style.backgroundColor,
+                      fontColor: textColor,
+                      hidden: !chart.getDataVisibility(i),
+                      index: i
+                    };
+                  });
+                }
+              }
+            },
+            tooltip: {
+              callbacks: {
+                label(ctx) {
+                  const v = ctx.raw, total = ctx.dataset.data.reduce((a,b)=>a+b,0);
+                  return `${ctx.label}: ${v} (${total?((v/total*100).toFixed(1)+'%'):'0%'})`;
+                }
+              }
+            }
+          }
+        }
+      });
+
+      // Request Type Distribution (doughnut) — updated legend to respect dark mode
+      const rtL = Object.keys(data.breakdowns.requestType), rtD = Object.values(data.breakdowns.requestType);
+      let rtColors = generateGradientColors(rtD.length);
+      rtColors[rtD.indexOf(Math.max(...rtD))] = '#002347';
+      requestChart = new Chart(document.getElementById('chart-requestType'), {
+        type: 'doughnut',
+        data: { labels: rtL, datasets: [{ data: rtD, backgroundColor: rtColors }] },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'right',
+              labels: {
+                color: '#212529',
+                generateLabels: chart => {
+                  const data = chart.data;
+                  const ds = data.datasets[0];
+                  const total = ds.data.reduce((sum, v) => sum + v, 0);
+                  const meta = chart.getDatasetMeta(0);
+                  const textColor = chart.options.plugins.legend.labels.color;
+                  return data.labels.map((label, i) => {
+                    const value = ds.data[i] || 0;
+                    const pct = total ? ((value / total * 100).toFixed(1) + '%') : '0%';
+                    const style = meta.controller.getStyle ? meta.controller.getStyle(i) : {};
+                    return {
+                      text: `${label}: ${value} (${pct})`,
+                      fillStyle: style.backgroundColor,
+                      fontColor: textColor,
+                      hidden: !chart.getDataVisibility(i),
+                      index: i
+                    };
+                  });
+                }
+              }
+            },
+            tooltip: {
+              callbacks: {
+                label(ctx) {
+                  const v = ctx.raw, total = ctx.dataset.data.reduce((a,b)=>a+b,0);
+                  return `${ctx.label}: ${v} (${total?((v/total*100).toFixed(1)+'%'):'0%'})`;
+                }
+              }
+            }
+          }
+        }
+      });
+
+      // Animate cards on scroll into view
+      const observer = new IntersectionObserver((entries, obs) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('animate-in');
+            obs.unobserve(entry.target);
+          }
+        });
+      }, { threshold: 0.1 });
+
+      document.querySelectorAll('.card').forEach(card => {
+        observer.observe(card);
+      });
+    }
+  </script>
+
+</body>
+</html>
+  

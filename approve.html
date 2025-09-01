@@ -1,0 +1,228 @@
+<!-- approve.html -->
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <title><?= action === 'approve' ? 'Approve' : 'Decline' ?> Ticket <?= ticket ?></title>
+    <meta charset="utf-8" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      html, body {
+        height: 100%;
+        margin: 0;
+        font-family: 'Inter', sans-serif;
+        background-color: #f8f9fa;
+      }
+      .container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100%;
+        padding: 1rem;
+      }
+      .card {
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        max-width: 400px;
+        width: 100%;
+        padding: 2rem;
+        text-align: center;
+      }
+      .card h2 {
+        margin-top: 0;
+        margin-bottom: 1rem;
+      }
+      .buttons {
+        margin-top: 1.5rem;
+      }
+      .buttons button {
+        padding: 0.6rem 1.2rem;
+        font-size: 1rem;
+        margin: 0 0.5rem;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      .approve { background-color: #28a745; color: #fff; }
+      .decline { background-color: #dc3545; color: #fff; }
+
+      #commentSection {
+        margin-top: 1.5rem;
+        display: none;
+        text-align: left;
+      }
+      #commentSection label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+      }
+      #commentSection textarea {
+        width: 100%;
+        height: 80px;
+        padding: 0.5rem;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        resize: vertical;
+        font-family: 'Inter', sans-serif;
+      }
+      .comment-buttons {
+        margin-top: 0.5rem;
+        text-align: right;
+      }
+      .comment-buttons button {
+        padding: 0.6rem 1.2rem;
+        font-size: 1rem;
+        margin-left: 0.5rem;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      #submitCommentBtn { background-color: #007bff; color: #fff; }
+      #backBtn          { background-color: #6c757d; color: #fff; }
+
+      #message { margin-top: 1rem; color: #d9534f; }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="card" id="responseCard">
+        <h2>Ticket <?= ticket ?></h2>
+        <p>Approver: <strong><?= approver ?></strong></p>
+        <p>Do you want to approve or decline this request?</p>
+        <div class="buttons" id="actionButtons">
+          <button class="approve" id="approveBtn">Approve</button>
+          <button class="decline" id="declineBtn">Decline</button>
+        </div>
+
+        <div id="commentSection">
+          <label id="commentLabel" for="comment"><strong>Please provide a reason:</strong></label>
+          <textarea id="comment" placeholder="Enter your comment here..."></textarea>
+          <div class="comment-buttons">
+            <button id="backBtn">Back</button>
+            <button id="submitCommentBtn">Submit</button>
+          </div>
+        </div>
+
+        <div id="message"></div>
+      </div>
+
+      <div class="card" id="alreadyCard" style="display:none;">
+        <h2>Ticket <?= ticket ?></h2>
+        <div id="alreadyMsg"></div>
+      </div>
+    </div>
+
+    <script>
+      // ---- loading-spinner helpers ----
+      function showButtonLoading(btn) {
+        btn.disabled = true;
+        btn.dataset.orig = btn.innerHTML;
+        const text = btn.textContent.trim();
+        btn.innerHTML = `<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> ${text}`;
+      }
+      function hideButtonLoading(btn) {
+        if (btn.dataset.orig) {
+          btn.innerHTML = btn.dataset.orig;
+          delete btn.dataset.orig;
+        }
+        btn.disabled = false;
+      }
+
+      const ticket        = '<?= ticket ?>';
+      const approver      = '<?= approver ?>';
+      const responseCard  = document.getElementById('responseCard');
+      const alreadyCard   = document.getElementById('alreadyCard');
+      const alreadyMsg    = document.getElementById('alreadyMsg');
+      const approveBtn    = document.getElementById('approveBtn');
+      const declineBtn    = document.getElementById('declineBtn');
+      const actionButtons = document.getElementById('actionButtons');
+      const commentSection= document.getElementById('commentSection');
+      const commentLabel  = document.getElementById('commentLabel');
+      const commentInput  = document.getElementById('comment');
+      const submitCommentBtn = document.getElementById('submitCommentBtn');
+      const backBtn       = document.getElementById('backBtn');
+      const messageDiv    = document.getElementById('message');
+
+      let currentAction = '';
+
+      function promptComment(action) {
+        currentAction = action;
+        commentLabel.textContent = action === 'approve'
+          ? 'Additional Comments:'
+          : 'Please provide a reason for declining:';
+        actionButtons.style.display  = 'none';
+        commentSection.style.display = 'block';
+        messageDiv.textContent       = '';
+      }
+
+      function hideCommentBox() {
+        commentSection.style.display = 'none';
+        actionButtons.style.display  = 'block';
+        commentInput.value           = '';
+        messageDiv.textContent       = '';
+      }
+
+      function submitResponse() {
+        const comment = commentInput.value.trim();
+        if (!comment) {
+          messageDiv.textContent = 'Comment cannot be empty.';
+          hideButtonLoading(submitCommentBtn);
+          return;
+        }
+        // disable main buttons
+        approveBtn.disabled = declineBtn.disabled = true;
+        messageDiv.textContent = 'Submitting…';
+
+        google.script.run
+          .withSuccessHandler(() => {
+            responseCard.style.display = 'none';
+            alreadyCard.style.display  = 'block';
+            // restore submit button for future use
+            hideButtonLoading(submitCommentBtn);
+            let msg = `<p>Thank you! You have <strong>${
+              currentAction === 'approve' ? 'approved' : 'declined'
+            }</strong> this ticket.</p>`;
+            msg += `<p><em>Comment:</em> ${comment}</p>`;
+            alreadyMsg.innerHTML = msg;
+          })
+          .withFailureHandler(err => {
+            messageDiv.textContent = 'Error: ' + (err.message || err);
+            // re-enable buttons
+            hideButtonLoading(submitCommentBtn);
+            hideButtonLoading(approveBtn);
+            hideButtonLoading(declineBtn);
+            hideButtonLoading(backBtn);
+          })
+          .recordApproval(ticket, approver, currentAction, comment);
+      }
+
+      function attachHandlers(){
+        approveBtn.addEventListener('click', function(){
+          showButtonLoading(this);
+          promptComment('approve');
+          hideButtonLoading(this);
+        });
+        declineBtn.addEventListener('click', function(){
+          showButtonLoading(this);
+          promptComment('reject');
+          hideButtonLoading(this);
+        });
+        backBtn.addEventListener('click', function(){
+          showButtonLoading(this);
+          hideCommentBox();
+          hideButtonLoading(this);
+        });
+        submitCommentBtn.addEventListener('click', function(){
+          showButtonLoading(this);
+          submitResponse();
+        });
+      }
+
+      document.addEventListener('DOMContentLoaded', attachHandlers);
+    </script>
+  </body>
+</html>

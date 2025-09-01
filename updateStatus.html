@@ -1,0 +1,3618 @@
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <base href="<?= ScriptApp.getService().getUrl() ?>" target="_top">
+    <title>Update Ticket Status - Yngen Group IT Ticketing System</title>
+    <!-- Bootstrap 5 CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css" />
+    <!-- Google Font -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.min.css">
+    <!-- Select2 CSS for searchable dropdowns -->
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+
+<style>
+  /* Ensure modals always appear on top */
+  .modal { z-index: 11000 !important; }
+  .modal-backdrop { z-index: 10900 !important; background-color: rgba(0, 0, 0, 0.8) !important; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: hidden;
+    background: #f8f9fa;
+  }
+  body {
+    font-family: 'Inter', sans-serif;
+  }
+  .container {
+    height: 100%; /* Fill viewport for vertical centering */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  .login-card {
+    max-width: 400px;
+    position: absolute !important;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+  .card-custom {
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    padding: 20px;
+    margin: 20px auto;
+  }
+  .title-main { margin: 10px 0 !important; }
+
+  .table-responsive {
+    height: calc(100vh - 300px);
+    overflow-y: auto;
+    overflow-x: auto;
+  }
+
+  /* Header row styling */
+  #ticketsTable thead tr:first-child th {
+    position: sticky;
+    top: 0;
+    z-index: 3;                    /* sit above everything */
+    background: #343a40 !important;
+    color: #fff !important;
+    font-weight: normal !important;
+    border-color: #adb5bd !important;
+  }
+  /* Remove stripe shading */
+  #ticketsTable.table-striped tbody tr:nth-of-type(odd) {
+    background-color: transparent;
+  }
+  /* Thinner borders */
+  #ticketsTable th,
+  #ticketsTable td {
+    border: 0.5px solid #e0e0e0 !important; /* ← softer grey */
+    white-space: nowrap;
+  }
+  /* Icon spacing */
+  #ticketsTable thead th i {
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+  
+  /* dims the parent modal when a child modal is open */
+  #manageUsersModal.dimmed .modal-dialog {
+    filter: brightness(0.4);
+    transition: filter 0.2s ease;
+  }
+
+
+  /* Status button styling */
+  .status-btn {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 1rem;
+    font-size: 0.875rem;
+    text-decoration: none;
+  }
+  .status-open { background-color: #cce5ff; color: #004085; }
+  .status-reopened { background-color: #ffe5cc; color: #664d03; }
+  .status-completed { background-color: #d4edda; color: #155724; }
+  .status-in-progress { background-color: #fff3cd; color: #856404; }
+  .status-on-hold { background-color: #e2e3e5; color: #383d41; }
+  .status-canceled { background-color: #f8d7da; color: #721c24; }
+
+  /* Pill tag styling for other fields */
+  .pill {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 1rem;
+    font-size: 0.875rem;
+    margin: 0;
+  }
+  .pill-critical { background-color: #fde2e2; color: #721c24; }
+  .pill-high     { background-color: #fff3cd; color: #856404; }
+  .pill-medium   { background-color: #fffbe6; color: #856404; }
+  .pill-low      { background-color: #d4edda; color: #155724; }
+
+  /* Ticket Category */
+  .pill-incident {
+    background-color: #cce5ff;
+    color:        #004085;
+  }
+  .pill-service-request {
+    background-color: #fff3cd;
+    color:        #856404;
+  }
+
+  /* Pastel pills for those three columns */
+  .pill-line-of-business-col {
+    background-color: #f0f4c3;
+    color:        #827717;
+  }
+  .pill-office-site-col {
+    background-color: #ffd54f;
+    color:        #664c00;
+  }
+  .pill-request-type-col {
+    background-color: #b39ddb;
+    color:        #311b92;
+  }
+
+  .pill-declined {
+  background-color: #ffe5cc !important;
+  color: #664d03 !important;
+}
+
+  /* Issue Classification pills */
+  .pill-hardware      { background-color: #d1e7dd; color: #0f5132; }
+  .pill-software      { background-color: #cff4fc; color: #055160; }
+  .pill-server        { background-color: #e2e3e5; color: #383d41; }
+  .pill-network       { background-color: #e7d8fd; color: #3f085b; }
+  .pill-it-asset      { background-color: #fff3cd; color: #664d03; }
+  .pill-other         { background-color: #fde2e2; color: #721c24; }
+
+  /* Ticket Category pills */
+  .pill-incident {
+  background-color: #d4edda !important;  /* pastel green */
+  color:            #155724 !important;
+  }
+  .pill-service-request {
+    background-color: #fff3cd !important;  /* pastel yellow */
+    color:            #856404 !important;
+  }
+
+  /* Simplify edit-modal design */
+  .edit-modal .card {
+    box-shadow: none !important;
+    border: none !important;
+  }
+  .edit-modal .card-header {
+    background: none !important;
+    border-bottom: 1px solid #dee2e6 !important;
+  }
+  .edit-modal .card-body {
+    padding: 0.5rem 0 !important;
+  }
+  .edit-modal .modal-content {
+    padding: 1rem !important;
+  }
+
+  #ticketsTable thead tr:nth-child(2) th {
+    position: sticky;
+    top: 35px;                    /* height of your first header */
+    z-index: 2;                   /* just below the main header */
+    background: #fff;
+  }
+
+  /* ── Blinking effect for Critical priority rows ────────────────────── */
+@keyframes blinkingBackground {
+  0%   { background-color: #fde2e2; }
+  50%  { background-color: #fccccc; }
+  100% { background-color: #fde2e2; }
+}
+.blinking {
+  animation: blinkingBackground 1s infinite;
+}
+
+/* ── Approved / Declined row backgrounds ───────────────────────────── */
+.approved-row {
+  background-color: #e6f9e6 !important;  /* pastel green */
+}
+.declined-row {
+  background-color: #fff2e0 !important;  /* pastel orange */
+}
+
+/* ── Approval Status pills ─────────────────────────────────────────── */
+.pill-approved {
+  background-color: #d4edda !important;
+  color: #155724 !important;
+}
+.pill-declined {
+  background-color: #ffe5cc !important;
+  color: #664d03 !important;
+}
+
+@media (min-width: 576px) {
+  .modal {
+    /* remove the default Bootstrap modal margin so it covers full-height and prevents page scroll */
+    --bs-modal-margin: 0rem !important;
+    margin: 0 !important;
+  }
+}
+
+
+.modal-backdrop { }
+ .edit-modal .form-control,
+ .edit-modal .form-select { font-size: 0.875rem; width: 100%; }
+ .edit-modal .mb-2 { margin-bottom: 0.5rem !important; }
+ .edit-modal .modal-title,
+ .edit-modal .card-header { text-align: center; }
+ .modal-xl { max-width: 1000px; }
+ .edit-modal .modal-dialog {
+   max-height: 90vh;
+   margin: 1rem auto;
+}
+ .edit-modal .modal-content {
+   max-height: 90vh;
+   overflow-y: auto;
+ }
+ #resolutionRemarks { height: 38px; resize: vertical; }
+ #columnTogglePanel { display: none; margin-bottom: 10px; }
+ #columnTogglePanel label { margin-right: 10px; font-size: 0.875rem; }
+ .filter-select { width: 100%; font-size: 0.75rem; }
+ #globalSearch { width: 250px; margin-right: 8px; }
+ .fullscreen-mode {
+ position: fixed !important;
+ top: 0 !important;
+ left: 0 !important;
+ width: 100vw !important;
+ height: 100vh !important;
+ margin: 0 !important;
+ transform: none !important;
+ border-radius: 0 !important;
+ z-index: 9999 !important;
+ overflow: hidden !important;
+ max-width: none !important;
+}
+  .fullscreen-mode .table-responsive { height: calc(100vh - 95px) !important; }
+  .fullscreen-mode { max-width: none !important; }
+  .toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 12000; }
+  #ticketToastTemplate { display: none; }
+  .toast { cursor: pointer; }
+  .toast:hover { box-shadow: 0 0 10px rgba(0,0,0,0.3); }
+  .toast.bg-success { background-color: #28a745 !important; }
+  .toast.bg-danger { background-color: #dc3545 !important; }
+  .loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(255, 255, 255, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 30000;
+  }
+  .readonly-field {
+    background-color: #e9ecef;
+    border: none;
+    color: #6c757d;
+  }
+  /* ─── Sidebar Layout ─────────────────────────────────────────────────── */
+.sidebar {
+  position: fixed;
+  top: 0; left: 0;
+  width: 60px; height: 100vh;
+  background: #343a40;
+  overflow-x: hidden;
+  transition: width 0.3s;
+  z-index: 1000;
+}
+.sidebar:hover { width: 200px; }
+
+.sidebar .logo {
+  text-align: center;
+  padding: 16px 0;
+}
+.sidebar .logo img { max-width: 32px; }
+
+.sidebar nav {
+  display: flex;
+  flex-direction: column;
+}
+.sidebar .nav-link {
+  display: flex;
+  align-items: center;
+  color: #fff;
+  padding: 12px 16px;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.2s;
+}
+.sidebar .nav-link:hover,
+.sidebar .nav-link.active {
+  background: #495057;
+}
+.sidebar .nav-link i {
+  font-size: 1.5rem;
+  width: 24px;
+  margin-right: 12px;
+}
+.sidebar .nav-link span {
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.sidebar:hover .nav-link span {
+  opacity: 1;
+}
+.sidebar .divider {
+  border-top: 1px solid #495057;
+  margin: 8px auto;
+  width: 60%;
+}
+
+/* Push page content over when sidebar expands */
+.content {
+  margin-left: 60px;    /* keep your sidebar offset */
+  transition: margin-left 0.3s;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  padding: 0;           /* ← remove the 40px gutters */
+}
+
+
+.sidebar:hover + .content {
+  margin-left: 200px;
+}
+/* ─────────────────────────────────────────────────────────────────────── */
+
+/* Center all modals */
+.modal-dialog {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+}
+/* only limit these two modals, not ALL of them */
+  #changePassModal .modal-content,
+  #createUserModal .modal-content,
+  #forgotPassModal .modal-content {
+  width: 100%;
+  max-width: 400px;
+}
+
+/* only dim all columns except the Actions column on Reopened rows */
+.locked-row > td:not(.action-col) {
+  opacity: 0.5;
+}
+
+/* keep the entire Actions column—including both buttons—at full opacity */
+.locked-row > td.action-col,
+.locked-row > td.validate-col {
+  opacity: 1;
+}
+
+/* make sure buttons themselves look active */
+.locked-row .btn {
+  cursor: pointer;
+}
+
+/* 1) Exclude the Validate column from the “locked-row” dimming */
+.locked-row > td:not(.action-col):not(.validate-col) {
+  opacity: 0.5;
+}
+
+/* ── Approval History Modal tweaks ───────────────────────────────────── */
+
+#approvalHistoryModal .modal-dialog {
+  max-width: 90vw;
+  width: 90vw;
+}
+
+#approvalHistoryModal .modal-content {
+  max-height: 90vh;
+}
+
+#approvalHistoryModal .modal-body {
+  position: relative;
+  padding-bottom: 1.5rem !important;
+ }
+ #approvalHistoryModal .tab-pane .table-responsive {
+   padding-bottom: 1rem;
+ }
+
+
+/* table header in that modal */
+#approvalHistoryTable thead th {
+  position: sticky;
+  top: 0;
+  background: #000;
+  color: #fff;
+  white-space: nowrap;
+  font-weight: normal;
+  z-index: 2;
+}
+
+#approvalHistoryTable tbody tr {
+  border-bottom: 1px solid #dee2e6;
+}
+#approvalHistoryTable tbody tr:last-child {
+  border-bottom: none;
+}
+
+.approval-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 1rem;        /* oblong pill */
+  text-transform: capitalize; /* Only first letter */
+  font-size: 0.875rem;
+}
+.approval-badge.approve {
+  background-color: #d4edda;  /* pastel green */
+  color:            #155724;
+}
+.approval-badge.reject {
+  background-color: #f8d7da;  /* pastel red */
+  color:            #721c24;
+}
+
+.modal.fade .modal-dialog {
+  display: flex;
+  align-items: center;
+  min-height: 100vh;
+}
+
+/* 2. Darker backdrop & disable body scroll when modal open */
+.modal-backdrop.show {
+  background-color: rgba(0,0,0,0.9) !important;
+}
+body.modal-open,
+html.modal-open {
+  overflow: hidden !important;
+}
+
+.modal-backdrop {
+  position: fixed !important;
+}
+
+/* 5. Shrink & right-align the search box */
+#approvalSearch {
+  width: 33.3333% !important;
+  max-width: none;
+  margin-left: auto;
+}
+
+#kanbanContainer {
+  display: flex;
+  gap: 1rem;
+  overflow-x: auto;
+  overflow-y: auto;
+  /* leave room for your header / nav bar */
+  height: calc(100vh - 300px);
+  padding: 1rem 0.5rem;
+  padding-top: 0.25rem !important;
+}
+
+.kanban-column {
+  flex: 0 0 280px;   /* pick whatever column-width you like */
+  max-height: 100%;
+  overflow-y: auto;  /* allow vertical scroll in each column */
+  background: #f8f9fa;
+  border-radius: 4px;
+  padding-bottom: 0.5rem;
+}
+
+.kanban-card strong {
+  display: block;
+  /* reserve space on the right for the priority badge */
+  margin-right: 3rem;
+  /* allow breaking on long words or spaces */
+  white-space: normal;
+  word-break: break-word;
+}
+
+.kanban-card .pill {
+  /* smaller font to match date/LOB */
+  font-size: 0.75rem !important;
+  /* tighter padding */
+  padding: 0.15rem 0.4rem !important;
+  /* still rounded but less extreme */
+  border-radius: 0.5rem !important;
+  /* give a little vertical breathing room */
+  margin: 0 0 0.25rem 0 !important;
+}
+
+/* Wipe out any card padding & force true 100vw/100vh in FS */
+#ticketTableCard.fullscreen-mode,
+#ticketTableCard.fullscreen-mode .card-custom {
+  width: 100vw    !important;
+  max-width: none !important;
+  height: 100vh   !important;
+  margin: 0       !important;
+  border-radius: 0!important;
+}
+
+
+/* ─── Column Header Colors (optional) ───────────────────────────────── */
+.kanban-column h3 {
+  margin: 0 0 0.5rem;
+  padding: 0.5rem;
+  font-size: 1rem;
+  text-align: center;
+  color: #fff;
+  border-radius: 4px 4px 0 0;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.kanban-card .meta small {
+  font-size: 0.75rem;
+  background-color: #f0f0f0;    /* light grey pill */
+  padding: 0.15rem 0.4rem;
+  border-radius: 0.25rem;
+  display: inline-block;
+  margin-bottom: 0.25rem;
+  color: #333;
+}
+
+/* tighten up the meta container spacing */
+.kanban-card .meta {
+  margin-top: 0.25rem;
+  margin-bottom: 0.25rem;
+}
+
+.priority-text {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 0.25rem;
+  padding: 0.15rem 0.5rem;
+  margin-top: 0.5rem;   /* little spacing below the header */
+}
+.priority-text.critical { background: #dc3545; color: #fff; }
+.priority-text.high     { background: #fd7e14; color: #fff; }
+.priority-text.medium   { background: #ffc107; color: #212529; }
+.priority-text.low      { background: #28a745; color: #fff; }
+
+/* ─── Cards ─────────────────────────────────────────────────────────── */
+.kanban-card .kanban-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.5rem;
+}
+.kanban-card .kanban-header .description {
+  /* allow it to wrap if it’s long */
+  flex: 1;
+  margin-right: 0.5rem;
+  word-break: break-word;
+}
+.priority-text {
+  /* remove the old absolute positioning */
+  position: static !important;
+  margin: 0;
+}
+
+.kanban-card .footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: auto;
+  padding-top: 0.5rem;
+  border-top: 1px solid #eee;
+}
+.kanban-card .ticket-number {
+  font-weight: bold;
+  font-size: 0.875rem;
+}
+
+/* ─── Give cards a bit more breathing room ──────────────── */
+.kanban-column {
+  flex: 0 0 280px;  /* bump width so text has more lines before wrapping */
+}
+
+.kanban-card {
+  position: relative;
+  background: #fff;
+  border-radius: 4px;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+  font-size: 0.875rem;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+}
+
+.kanban-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.fullscreen-mode #kanbanContainer {
+  height: calc(100vh - 60px); /* whatever your header height is */
+  padding-bottom: 3rem;
+}
+
+#ticketTableCard.fullscreen-mode #kanbanContainer {
+  justify-content: center;
+}
+
+.kanban-card .meta {
+  font-size: 0.75rem;
+  color: #666;
+  margin-top: 0.25rem;
+}
+.kanban-card .footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.75rem;
+}
+.kanban-card .initials {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #e9ecef;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #495057;
+}
+/* 1) style the description up top */
+.kanban-card .card-desc {
+  font-size: 0.875rem;
+   margin-top: 1.5rem;
+  font-size: 0.875rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 2) reflow the footer to show ticket# on left */
+.kanban-card .footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.75rem;
+}
+
+/* 3) ensure ticket# stays bold and legible */
+.kanban-card .ticket-number {
+  font-weight: 700;
+  font-size: 0.875rem;
+  color: #333;
+}
+
+/* 4) shrink the initials circle a little if needed */
+.kanban-card .initials {
+  width: 24px;
+  height: 24px;
+  font-size: 0.75rem;
+}
+
+.pill-approved {
+  background-color: #d4edda !important;
+  color: #155724 !important;
+}
+
+.pill-declined {
+  background-color: #f8d7da !important;
+  color: #721c24 !important;
+}
+
+.pill-pending {
+  background-color: #fff3cd !important;
+  color: #856404 !important;
+}
+
+
+/* ─── Editors’ initials in Kanban footer ─────────────────────────── */
+
+/* flex‐row container for multiple circles */
+.kanban-card .editors-container {
+  display: flex !important;
+  gap: 0.25rem !important;
+  margin-left: auto !important;  /* push them to the right edge */
+}
+
+/* each little initials circle */
+.kanban-card .initials {
+  width: 24px !important;
+  height: 24px !important;
+  border-radius: 50% !important;
+  background: #e9ecef !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  font-size: 0.75rem !important;
+  font-weight: 600 !important;
+  color: #495057 !important;
+}
+
+/* ── Approval‐history “pill” badges ───────────────────────────────── */
+.approval-pill {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.approval-pill.approvers {
+  background-color: #e2e3e5; /* light grey */
+  color:           #383d41;
+}
+
+.approval-pill.current {
+  background-color: #cce5ff; /* light blue */
+  color:           #004085;
+}
+
+/* center those two columns */
+#approvalHistoryTable th:nth-child(3),
+#approvalHistoryTable td:nth-child(3),
+#approvalHistoryTable th:nth-child(4),
+#approvalHistoryTable td:nth-child(4) {
+  text-align: center;
+}
+
+
+</style>
+
+  </head>
+  <body>
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <div class="logo">
+        <img
+          src="https://res.cloudinary.com/dbi3vgnnj/image/upload/v1746686322/YDC_Logo_1_orjbaj.png"
+          alt="YNGEN"
+        />
+      </div>
+      <nav>
+        <a class="nav-link" href="?page=index">
+          <i class="fa fa-pie-chart"></i><span>Dashboard</span>
+        </a>
+        <a class="nav-link" href="?page=createTicket">
+          <i class="fa-solid fa-ticket"></i><span>Create Ticket</span>
+        </a>
+        <a class="nav-link" href="?page=searchStatus">
+          <i class="fa-solid fa-magnifying-glass"></i><span>Search Status</span>
+        </a>
+        <a class="nav-link" href="?page=ithub">
+          <i class="fa-solid fa-circle-info"></i><span>IT How-To Hub</span>
+        </a>
+        <div class="divider"></div>
+        <a class="nav-link active" href="?page=updateStatus">
+          <i class="fa-solid fa-pen-to-square"></i><span>Update Ticket</span>
+        </a>
+      </nav>
+    </div>
+
+
+<!-- Main Container -->
+<div class="content">
+<div class="container">
+  <div class="row justify-content-center">
+    <!-- Login Card -->
+    <div class="col-md-6 login-card">
+      <div id="loginCard" class="card-custom mb-4">
+        <div class="text-center mb-3">
+          <img src="https://res.cloudinary.com/dbi3vgnnj/image/upload/v1742450366/YNGEN_GROUP-removebg-preview_1_ps9d5d.png" 
+               alt="Logo 1" style="height:50px;">
+        </div>
+        <label class="form-label d-block text-center mb-3" style="font-weight: 500;">Sign in to your account</label>
+        <form id="adminLoginForm">
+          <div class="mb-3">
+            <label for="username" class="form-label">Username</label>
+            <input type="text" class="form-control" id="username" required>
+          </div>
+          <div class="mb-3">
+            <label for="password" class="form-label">Password</label>
+            <div class="input-group">
+              <input type="password" class="form-control" id="password" required>
+              <button type="button" class="btn btn-outline-secondary" id="togglePassword">Show</button>
+            </div>
+          </div>
+          <div class="mb-3 form-check">
+            <input type="checkbox" class="form-check-input" id="rememberMe">
+            <label class="form-check-label" for="rememberMe">Remember Me</label>
+          </div>
+          <button id="showCreateUser" type="button" class="btn btn-secondary w-100 mb-2">
+            Create Account
+          </button>
+          <button type="submit" class="btn btn-primary w-100">Login</button>
+        </form>
+        <div class="text-center mt-2">
+          <a href="#" id="showForgotPass" class="small">Forgot Password?</a>
+        </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Tickets Table Card -->
+    <div class="col-lg-12" id="ticketTableCol">
+      <div id="ticketTableCard" class="card-custom" style="display:none; width: 95%; max-width: 1400px;">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h2 class="m-0 title-main">All Tickets</h2>
+          <div>
+            <input type="text" class="form-control d-inline-block" id="globalSearch" placeholder="Global Search..." />
+            <button class="btn btn-secondary" id="dashboardBtn" title="Dashboard" style="margin-left:8px;">
+              <i class="bi bi-speedometer2"></i> Dashboard
+            </button>
+            <button class="btn btn-secondary" id="toggleColumnsBtn" title="Toggle Columns">
+              <i class="bi bi-columns-gap"></i>
+            </button>
+            <button class="btn btn-secondary" id="fullScreenBtn" title="Full Screen">
+              <i class="bi bi-window-fullscreen"></i>
+            </button>
+            <button class="btn btn-secondary" id="logsPageBtn" title="View Logs">
+              <i class="bi bi-journal-text"></i>
+            </button>
+            <button class="btn btn-secondary" id="viewApprovalsBtn" title="View Approvals">
+              <i class="bi bi-card-list"></i>
+            </button>
+            <button class="btn btn-secondary" id="kanbanViewBtn" title="Kanban View">
+              <i class="bi bi-kanban-fill"></i>
+            </button>
+            <button class="btn btn-secondary" id="changePassBtn" title="Change Password">
+              <i class="bi bi-key"></i>
+            </button>
+            <button id="manageUsersBtn"
+                    class="btn btn-secondary me-1"
+                    style="display:none;">
+              <i class="bi bi-people"></i>
+            </button>
+            <button class="btn btn-danger" id="logoutBtn" title="Logout">
+              <i class="bi bi-box-arrow-right"></i>
+            </button>
+          </div>
+        </div>
+        <div id="columnTogglePanel"></div>
+        <div class="table-responsive" id="ticketTable"></div>
+        <div id="kanbanContainer" style="display:none;"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Update Ticket Modal -->
+<div class="modal fade" id="updateModal" tabindex="-1" aria-labelledby="updateModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title w-100 text-center" id="updateModalLabel">Update Ticket</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"
+                aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form id="updateForm">
+          <div class="mb-3">
+            <label for="ticketNumberDisplay" class="form-label">Ticket Number</label>
+            <input type="text" class="form-control readonly-field" id="ticketNumberDisplay" readonly>
+          </div>
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label for="newStatus" class="form-label">Status</label>
+              <select class="form-select" id="newStatus" required>
+                <option value="">--Select Status--</option>
+                <option value="Open">Open</option>
+                <option value="Reopened">Reopened</option>
+                <option value="Completed">Completed</option>
+                <option value="In Progress">In Progress</option>
+                <option value="On Hold">On Hold</option>
+                <option value="Canceled">Canceled</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label for="itIncharge" class="form-label">IT In-charge</label>
+              <input type="text" class="form-control readonly-field" id="itIncharge" required disabled>
+            </div>
+            <div class="col-md-4">
+              <label for="resolutionRemarks" class="form-label">Solution/Remarks</label>
+              <textarea class="form-control" id="resolutionRemarks" rows="1" required></textarea>
+            </div>
+          </div>
+          <input type="hidden" id="updateTicketNumber">
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-primary" id="submitUpdate">Update Ticket</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Ticket Modal -->
+<div class="modal fade edit-modal" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-xl">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title w-100 text-center" id="editModalLabel">Edit Ticket</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form id="editForm">
+          <div id="editFormContainer"></div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-primary btn-sm" id="submitEdit">Submit Edit</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Cancellation Modal -->
+<div class="modal fade" id="cancelModal" tabindex="-1" aria-labelledby="cancelModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="cancelModalLabel">Cancel Ticket</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label for="cancelReasonModal" class="form-label">Cancellation Reason</label>
+          <textarea id="cancelReasonModal" class="form-control" rows="3" required></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-danger" id="submitCancelBtn">Cancel Ticket</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast Notification Container -->
+<div class="toast-container"></div>
+<!-- Hidden Toast Template -->
+<div id="ticketToastTemplate" class="toast align-items-center text-white bg-success border-0"
+     role="alert" aria-live="assertive" aria-atomic="true"
+     data-bs-autohide="true" data-bs-delay="10000">
+  <div class="d-flex">
+    <div class="toast-body">
+      <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+      New ticket created: <span class="toast-ticket-number"></span>
+    </div>
+    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+  </div>
+</div>
+
+<!-- Create User Modal -->
+<div class="modal fade" id="createUserModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header"><h5>Create Account</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-danger small mb-3">
+          Only registered employees may create an account.
+        </p>
+        <div id="createUserMsg" class="small mb-2"></div>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <div>
+              <label class="form-label">Full Name</label>
+              <input type="text" id="newFullName" class="form-control">
+            </div>
+            <div>
+              <label class="form-label">Email Address</label>
+              <input type="email" id="newEmail" class="form-control">
+            </div>
+            <div>
+              <label class="form-label">Department</label>
+              <select id="newDept" class="form-select">
+                <option value="IT Department">IT Department</option>
+              </select>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div>
+              <label class="form-label">Employee ID</label>
+              <input type="text" id="newEmpId" class="form-control">
+            </div>
+            <div>
+              <label class="form-label">Username</label>
+              <input type="text" id="newUsername" class="form-control">
+            </div>
+            <div>
+              <label class="form-label">Password</label>
+              <input type="password" id="newPassword" class="form-control">
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button id="submitCreateUser" class="btn btn-primary">Create</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Forgot Password Modal -->
+<div class="modal fade" id="forgotPassModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5>Reset Password</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-2">
+          <label class="form-label">Email Address</label>
+          <input type="email" id="fpEmail" class="form-control" required>
+        </div>
+        <div id="forgotPassMsg" class="text-danger small"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button id="submitForgotPass" class="btn btn-primary">Send Reset Email</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- Change Password Modal (with Old Password) -->
+<div class="modal fade" id="changePassModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5>Change Password</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+      <div class="mb-2">
+        <label class="form-label">Username</label>
+        <input type="text" id="changePassUsername" class="form-control" readonly>
+      </div>
+      <div class="mb-2">
+        <label class="form-label">Old Password</label>
+        <input type="password" id="oldPasswordField" class="form-control" required>
+      </div>
+      <div class="mb-2">
+        <label class="form-label">New Password</label>
+        <input type="password" id="newPasswordField" class="form-control" required>
+      </div>
+    </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button id="submitChangePass" class="btn btn-primary">Update</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- Logout Confirmation Modal -->
+<div class="modal fade" id="logoutConfirmModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header"><h5>Confirm Logout</h5></div>
+      <div class="modal-body">
+        Are you sure you want to logout?
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button id="confirmLogoutBtn" class="btn btn-danger">Logout</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Validate Reopened Modal -->
+<div class="modal fade" id="validateReopenModal" tabindex="-1" aria-labelledby="validateReopenLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 id="validateReopenLabel" class="modal-title">Validate Reopened Ticket</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="validateReopenBody"></div>
+      <div class="modal-footer">
+        <button class="btn btn-success" id="confirmValidReopenBtn">Valid Reopened</button>
+        <button class="btn btn-danger"  id="confirmInvalidReopenBtn">Invalid Reopened</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Invalid-Reopen Reason Modal -->
+<div class="modal fade" id="invalidReasonModal" tabindex="-1" aria-labelledby="invalidReasonLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 id="invalidReasonLabel" class="modal-title">Reason for Invalid Reopen</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <textarea id="invalidReasonText" class="form-control" rows="4" placeholder="Enter reason here…"></textarea>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button id="submitInvalidReasonBtn" class="btn btn-danger">Submit</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Manage Admin Users List ─────────────────────────────────── -->
+<div class="modal fade" id="manageUsersModal" tabindex="-1" aria-labelledby="manageUsersLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 id="manageUsersLabel" class="modal-title">Manage Admin Users</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <table class="table table-hover">
+          <thead>
+            <tr>
+              <th>Full Name</th>
+              <th>Role</th>
+              <th class="text-end" style="width:140px">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="adminUsersTableBody">
+            <!-- injected by JS -->
+          </tbody>
+        </table>
+      </div>
+              <div class="modal-footer">
+          <button id="addAdminUserBtn" class="btn btn-primary">
+            <i class="bi bi-plus-circle me-1"></i>Add User
+          </button>
+          <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── Delete Confirmation ──────────────────────────────────────── -->
+<div class="modal fade" id="deleteAdminUserConfirmModal" tabindex="-1" aria-labelledby="deleteAdminUserLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 id="deleteAdminUserLabel" class="modal-title text-danger">Delete Admin User</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        Are you sure you want to delete <strong id="deleteUserName"></strong>?
+        <input type="hidden" id="deleteUserIndex">
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button id="confirmDeleteAdminUserBtn" class="btn btn-warning">
+          Delete
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Service-Request Approval Modal -->
+<div class="modal fade" id="approvalHistoryModal" tabindex="-1" aria-labelledby="approvalHistoryLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-xl">
+    <div class="modal-content">
+      <div class="modal-header p-0 border-0">
+        <ul class="nav nav-tabs w-100">
+          <li class="nav-item">
+            <a class="nav-link active" id="tabHistory" data-bs-toggle="tab" href="#paneHistory">Approvals</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" id="tabApprovers" data-bs-toggle="tab" href="#paneApprovers">Approvers</a>
+          </li>
+        </ul>
+        <button type="button" class="btn-close ms-auto me-2" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body tab-content p-2">
+        <div class="tab-pane fade show active" id="paneHistory">
+          <div class="d-flex">
+            <input id="approvalSearch" class="form-control form-control-sm ms-auto mb-2" placeholder="Search…">
+          </div>
+          <div class="table-responsive" style="max-height:80vh;overflow-y:auto;">
+            <table class="table table-bordered" id="approvalHistoryTable">
+              <thead><tr id="approvalHistoryHeader"></tr></thead>
+              <tbody id="approvalHistoryBody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="tab-pane fade" id="paneApprovers">
+          <div class="d-flex mb-2">
+            <button id="addApproverRow" class="btn btn-sm btn-primary">Add</button>
+            <button id="saveApproversBtn" class="btn btn-sm btn-success ms-2">Save</button>
+          </div>
+          <div class="table-responsive" style="max-height:80vh;overflow-y:auto;">
+            <table class="table table-bordered">
+              <thead>
+                <tr>
+                  <th>Line Of Business</th>
+                  <th>Approver 1</th>
+                  <th>Approver 2</th>
+                  <th>Approver 3</th>
+                  <th>Approver 4</th>
+                  <th style="width:80px">Action</th>
+                </tr>
+              </thead>
+              <tbody id="approversTableBody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ─── Edit User Details ───────────────────────────────────────── -->
+<div class="modal fade" id="editAdminUserModal" tabindex="-1" aria-labelledby="editAdminUserLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 id="editAdminUserLabel" class="modal-title">Edit Admin User</h5>
+        <button class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="editAdminUserForm">
+          <input type="hidden" id="editUserIndex">
+          <div class="mb-3">
+            <label class="form-label">Full Name</label>
+            <input type="text" id="editUserFullName" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Username</label>
+            <input type="text" id="editUserUsername" class="form-control" disabled>
+          </div>
+          <div class="mb-3">
+            <label for="editUserPassword" class="form-label small">Password</label>
+            <div class="input-group">
+              <input
+                type="password"
+                class="form-control"
+                id="editUserPassword"
+                placeholder="••••••••"
+              >
+              <button
+                class="btn btn-outline-secondary"
+                type="button"
+                id="toggleEditPassword"
+                tabindex="-1"
+              >
+                <i class="bi bi-eye" aria-hidden="true"></i>
+              </button>
+            </div>
+            <div class="form-text">
+              Leave blank to keep existing password.
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Email Address</label>
+            <input type="email" id="editUserEmail" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Department</label>
+            <input type="text" id="editUserDept" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label" disabled>Employee ID</label>
+            <input type="text" id="editUserEmpId" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Role</label>
+            <select id="editUserRole" class="form-select" required>
+              <option value="Admin">Admin</option>
+              <option value="Superadmin">Superadmin</option>
+            </select>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button id="saveAdminUserBtn" class="btn btn-primary">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- Global Loading Overlay -->
+<div id="globalLoadingOverlay" class="loading-overlay" style="display:none;">
+  <div class="spinner-border text-primary" role="status"></div>
+</div>
+
+<!-- jQuery (for Select2) -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<!-- Bootstrap 5 Bundle JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"></script>
+<!-- Select2 JS for searchable dropdowns -->
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+<script>
+  // Helper functions for button loading effects
+  function showButtonLoading(btn) {
+    btn.disabled = true;
+    btn.dataset.originalText = btn.innerHTML;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Loading...';
+  }
+  function hideButtonLoading(btn) {
+    btn.disabled = false;
+    if (btn.dataset.originalText) {
+      btn.innerHTML = btn.dataset.originalText;
+      delete btn.dataset.originalText;
+    }
+  }
+
+  // Helper functions for global loading overlay
+  function showGlobalLoading() {
+    document.getElementById('globalLoadingOverlay').style.display = 'flex';
+  }
+  function hideGlobalLoading() {
+    document.getElementById('globalLoadingOverlay').style.display = 'none';
+  }
+  
+
+  document.addEventListener("DOMContentLoaded", function() {
+    // ── Remember Me: prefill saved creds ────────────────────────────
+    const rememberedUsername = localStorage.getItem("rememberedUsername");
+    const rememberedPassword = localStorage.getItem("rememberedPassword");
+    if (rememberedUsername) {
+      document.getElementById("username").value = rememberedUsername;
+      document.getElementById("rememberMe").checked = true;
+    }
+    if (rememberedPassword) {
+      document.getElementById("password").value = rememberedPassword;
+    }
+    window._reopenPrevStatuses = {};
+    window.previousApprovalStatus = {};
+    function showSuccessToast(msg) {
+      const container = document.querySelector(".toast-container");
+      const toastDiv = document.createElement("div");
+      const isError = msg.toLowerCase().indexOf("error") !== -1;
+      toastDiv.className = isError
+        ? "toast align-items-center text-white bg-danger border-0"
+        : "toast align-items-center text-white bg-success border-0";
+      toastDiv.setAttribute("role", "alert");
+      toastDiv.setAttribute("aria-live", "assertive");
+      toastDiv.setAttribute("aria-atomic", "true");
+      toastDiv.setAttribute("data-bs-autohide", "true");
+      toastDiv.setAttribute("data-bs-delay", "10000");
+      toastDiv.innerHTML =
+        '<div class="d-flex">' +
+          '<div class="toast-body">' + msg + '</div>' +
+          '<button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>' +
+        '</div>';
+      container.appendChild(toastDiv);
+      const toast = new bootstrap.Toast(toastDiv);
+      toast.show();
+      toastDiv.addEventListener('hidden.bs.toast', function () {
+        toastDiv.remove();
+      });
+    }
+
+    window.allTicketHeaders = [];
+    window.allTicketData = [];
+    window.displayMapping = [];
+    window.loggedInAdmin = "";
+    window.sortTicketOrder = "desc";
+    window.currentFilterValues = {};
+    window.previousTicketData = {};
+    window.isCancellation = false;
+    window.isServiceRequestEdit = false;
+    let isFullScreen = false;
+    let previousTicketCount = 0;
+    const orderIndices = [15,0,1,2,3,4,5,6,7,8,9,10,11,13,14,16,17,12,20,18,19];
+
+    // Login form handler
+    document
+  .getElementById("adminLoginForm")
+  .addEventListener("submit", function(e) {
+    e.preventDefault();
+    const loginBtn = this.querySelector("button[type='submit']");
+    showButtonLoading(loginBtn);
+    const username = document.getElementById("username").value.trim();
+    const password = document.getElementById("password").value.trim();
+
+    google.script
+      .run
+      .withSuccessHandler(function(authResult) {
+        hideButtonLoading(loginBtn);
+
+        if (authResult.success) {
+          // ── Remember Me: save or clear credentials ───────────────
+          if (document.getElementById("rememberMe").checked) {
+            localStorage.setItem("rememberedUsername", username);
+            localStorage.setItem("rememberedPassword", password);
+          } else {
+            localStorage.removeItem("rememberedUsername");
+            localStorage.removeItem("rememberedPassword");
+          }
+          window.loggedInAdmin    = authResult.fullName  || username;
+          window.loggedInUsername = username;
+
+          document.getElementById('manageUsersBtn').style.display =
+          authResult.role === 'Superadmin' ? 'inline-block' : 'none';
+
+          document.getElementById("loginCard").style.display      = "none";
+          document.getElementById("ticketTableCard").style.display = "block";
+          loadTickets();
+          setInterval(pollForNewTickets, 15000);
+        } else {
+          showSuccessToast("Error: Invalid credentials. Please try again.");
+        }
+      })
+      .authenticateAdmin({ username: username, password: password });
+  });
+
+
+    window.addEventListener("load", function() {
+      const rememberedUsername = localStorage.getItem("rememberedUsername");
+      const rememberedPassword = localStorage.getItem("rememberedPassword");
+      if (rememberedUsername) {
+        document.getElementById("username").value = rememberedUsername;
+        document.getElementById("rememberMe").checked = true;
+      }
+      if (rememberedPassword) {
+        document.getElementById("password").value = rememberedPassword;
+      }
+    });
+
+    document.getElementById("togglePassword").addEventListener("click", function() {
+      const passwordInput = document.getElementById("password");
+      if (passwordInput.type === "password") {
+        passwordInput.type = "text";
+        this.textContent = "Hide";
+      } else {
+        passwordInput.type = "password";
+        this.textContent = "Show";
+      }
+    });
+
+    // Forgot-Password by email
+    document.getElementById('submitForgotPass').addEventListener('click', () => {
+      const btn   = document.getElementById('submitForgotPass');
+      const email = document.getElementById('fpEmail').value.trim();
+      const msg   = document.getElementById('forgotPassMsg');
+      msg.textContent = '';
+      if (!email) {
+        msg.textContent = 'Please enter your email.';
+        return;
+      }
+      showButtonLoading(btn);
+      google.script.run
+        .withSuccessHandler(res => {
+          hideButtonLoading(btn);
+          if (res.success) {
+            showSuccessToast(`Temporary password sent to ${email}`);
+            setTimeout(
+              () => bootstrap.Modal.getInstance(document.getElementById('forgotPassModal')).hide(),
+              1200
+            );
+          } else {
+            msg.textContent = res.error;
+          }
+        })
+        .withFailureHandler(err => {
+          hideButtonLoading(btn);
+          msg.textContent = 'Error: ' + err.message;
+        })
+        .sendPasswordResetByEmail(email);
+    });
+
+
+    // show modals
+    document.getElementById('showCreateUser').onclick = e => {
+      e.preventDefault();
+      document.getElementById('createUserMsg').textContent = '';
+      new bootstrap.Modal(document.getElementById('createUserModal')).show();
+    };
+    document.getElementById('showForgotPass').onclick = e => {
+      e.preventDefault();
+      document.getElementById('forgotPassMsg').textContent = '';
+      new bootstrap.Modal(document.getElementById('forgotPassModal')).show();
+    };
+
+    document.getElementById('submitCreateUser').addEventListener('click', () => {
+    const btn     = document.getElementById('submitCreateUser');
+    if (btn.disabled) return;
+    showButtonLoading(btn);
+
+    const fullName  = document.getElementById('newFullName').value.trim();
+    const email     = document.getElementById('newEmail').value.trim().toLowerCase();
+    const dept      = document.getElementById('newDept').value;
+    const empId     = document.getElementById('newEmpId').value.trim();
+    const username  = document.getElementById('newUsername').value.trim();
+    const password  = document.getElementById('newPassword').value;
+    const msgBox    = document.getElementById('createUserMsg');
+    msgBox.textContent = '';
+
+    // basic client-side check
+    if (!fullName || !email || !dept || !empId || !username || !password) {
+      msgBox.textContent = 'All fields are required.';
+      hideButtonLoading(btn);
+      return;
+    }
+
+    // enforce 8+ chars, letters + numbers + symbol
+    const pwPattern = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
+    if (!pwPattern.test(password)) {
+      msgBox.textContent = 'Password must be 8+ characters and include letters, numbers & symbols.';
+      hideButtonLoading(btn);
+      return;
+    }
+
+    google.script.run
+      .withSuccessHandler(res => {
+        hideButtonLoading(btn);
+        if (res.success) {
+          showSuccessToast('Account created successfully.');
+          bootstrap.Modal.getInstance(
+            document.getElementById('createUserModal')
+          ).hide();
+          google.script.run
+            .withSuccessHandler(users => {
+              window.adminUsers = users;
+              renderAdminUsersTable();
+              new bootstrap.Modal(
+                document.getElementById('manageUsersModal')
+              ).show();
+            })
+            .getAdminUsers();
+        } else {
+          msgBox.textContent = res.error;
+        }
+      })
+      .createAdminUser({
+        fullName:   fullName,
+        email:      email,
+        department: dept,
+        empId:      empId,
+        username:   username,
+        password:   password
+      });
+  });
+
+
+    window.loadTickets      = loadTickets;
+    window.showSuccessToast = showSuccessToast;
+
+    // Change Password handler  
+    document.getElementById('submitChangePass').addEventListener('click', () => {
+      const btn = document.getElementById('submitChangePass');
+      showButtonLoading(btn);
+
+      const user   = document.getElementById('changePassUsername').value;
+      const oldPwd = document.getElementById('oldPasswordField').value;
+      const newPwd = document.getElementById('newPasswordField').value;
+
+      // 1) ensure both fields are filled
+      if (!oldPwd || !newPwd) {
+        showSuccessToast('Please fill both old and new passwords.', true);
+        hideButtonLoading(btn);
+        return;
+      }
+
+      // 2) enforce complexity: 8+ chars, at least one letter, one digit, one symbol
+      const pwPattern = /^(?=.*[A-Za-z])(?=.*\d)(?=.*[^A-Za-z0-9]).{8,}$/;
+      if (!pwPattern.test(newPwd)) {
+        showSuccessToast(
+          'New password must be at least 8 characters and include letters, numbers & symbols.',
+          true
+        );
+        hideButtonLoading(btn);
+        return;
+      }
+
+      // 3) call server
+      google.script.run
+        .withSuccessHandler(res => {
+          hideButtonLoading(btn);
+          if (res.success) {
+            showSuccessToast('Password changed—you’ve been logged out.');
+            bootstrap.Modal.getInstance(
+              document.getElementById('changePassModal')
+            ).hide();
+            window.loggedInAdmin = '';
+            // hide the tickets view
+            document.getElementById('ticketTableCard').style.display = 'none';
+            // show the login form again
+            document.getElementById('loginCard').style.display = '';
+            // clear any remember-me creds
+            localStorage.removeItem('rememberedUsername');
+            localStorage.removeItem('rememberedPassword');
+          } else {
+            showSuccessToast('Error: ' + res.error, true);
+          }
+        })
+        .withFailureHandler(err => {
+          hideButtonLoading(btn);
+          showSuccessToast('Error: ' + err.message, true);
+        })
+        .changeAdminPassword({
+          username:    user,
+          oldPassword: oldPwd,
+          newPassword: newPwd
+        });
+    });
+
+    // Open the Create-User modal from within Manage Users
+    document.getElementById('addAdminUserBtn').addEventListener('click', () => {
+      // Reset the “Create Account” form
+      document.getElementById('newFullName').value = '';
+      document.getElementById('newEmail').value    = '';
+      document.getElementById('newDept').value     = 'IT Department';
+      document.getElementById('newEmpId').value    = '';
+      document.getElementById('newUsername').value = '';
+      document.getElementById('newPassword').value = '';
+      document.getElementById('createUserMsg').textContent = '';
+
+      // Hide the Manage Users modal, then show Create Account
+      bootstrap.Modal.getInstance(
+        document.getElementById('manageUsersModal')
+      ).hide();
+
+      new bootstrap.Modal(
+        document.getElementById('createUserModal')
+      ).show();
+    });
+
+
+    document.getElementById("fullScreenBtn").addEventListener("click", function() {
+      const ticketCard = document.getElementById("ticketTableCard");
+      if (!isFullScreen) {
+        ticketCard.classList.add("fullscreen-mode");
+        this.innerHTML = '<i class="bi bi-window-stack"></i>';
+        this.title = "Exit Full Screen";
+        isFullScreen = true;
+      } else {
+        ticketCard.classList.remove("fullscreen-mode");
+        this.innerHTML = '<i class="bi bi-window-fullscreen"></i>';
+        this.title = "Full Screen";
+        isFullScreen = false;
+      }
+      buildColumnFilters();
+    });
+
+    document.getElementById("dashboardBtn").addEventListener("click", function() {
+      window.open("?page=index", "_blank");
+    });
+
+    document.getElementById("logsPageBtn").addEventListener("click", function() {
+      window.open("?page=logs", "_blank");
+    });
+
+    // open the confirmation modal
+    document.getElementById("logoutBtn").addEventListener("click", function() {
+      new bootstrap.Modal(document.getElementById("logoutConfirmModal")).show();
+    });
+
+    // only after confirmation do we actually logout
+    document.getElementById("confirmLogoutBtn").addEventListener("click", function() {
+      window.loggedInAdmin = "";
+      document.getElementById("ticketTableCard").style.display = "none";
+      document.getElementById("loginCard").style.display = "block";
+      bootstrap.Modal.getInstance(document.getElementById("logoutConfirmModal")).hide();
+    });
+
+    document.getElementById("toggleColumnsBtn").addEventListener("click", function() {
+      const panel = document.getElementById("columnTogglePanel");
+      panel.style.display = (panel.style.display === "none" || panel.style.display === "") ? "block" : "none";
+    });
+
+    document.getElementById("globalSearch").addEventListener("input", function() {
+      const kanbanVisible = document.getElementById("kanbanContainer").style.display === "flex";
+      if (kanbanVisible) {
+        filterKanban();
+      } else {
+        filterRows();
+      }
+    });
+
+
+    document.getElementById('viewApprovalsBtn').addEventListener('click', () => {
+      showGlobalLoading();
+      google.script
+        .run
+        .withSuccessHandler(data => {
+          hideGlobalLoading();
+
+          // 1) Sort tickets descending by numeric ITID
+          data.sort((a, b) =>
+            parseInt(b.ticket.replace('ITID',''), 10) -
+            parseInt(a.ticket.replace('ITID',''), 10)
+          );
+
+            // 2) Build the table header (including Summary column + Current Approver)
+        const header = document.getElementById('approvalHistoryHeader');
+        header.innerHTML =
+          '<th>Summary</th>' +
+          '<th>ITID</th>' +
+          '<th>Approvers</th>';
+
+          // — UPDATED: use the maximum approvers count across all tickets
+          const approverCount = data.length
+            ? Math.max(...data.map(r => r.approvers.length))
+            : 0;
+
+          for (let i = 0; i < approverCount; i++) {
+            header.insertAdjacentHTML('beforeend', `
+              <th>Approver ${i+1}</th>
+              <th>Timestamp</th>
+              <th>Action</th>
+              <th>Comment</th>
+            `);
+          }
+          // then add one column each for the current approver & resend button
+          header.insertAdjacentHTML('beforeend', `
+            <th>Current Approver</th>
+            <th>Resend</th>
+          `);
+
+          // 3) Build the table body
+          const body = document.getElementById('approvalHistoryBody');
+          body.innerHTML = '';
+          data.forEach(rowData => {
+            // Determine summary
+            const actions = rowData.approvals.map(a => (a.action||'').toLowerCase());
+            let summary;
+            if (actions.includes('reject')) {
+              summary = 'Declined';
+            } else if (actions.filter(a => a === 'approve').length === rowData.approvers.length) {
+              summary = 'Approved';
+            } else {
+              summary = 'Pending';
+            }
+            let pillClass;
+            if (summary === 'Approved') pillClass = 'pill-approved';
+            else if (summary === 'Declined') pillClass = 'pill-declined';
+            else pillClass = 'pill-pending';
+
+            const tr = document.createElement('tr');
+            // compute approved count and next approver
+            const totalApprovers   = rowData.approvers.length;
+            const approvedCount    = rowData.approvals.filter(a => a.action.toLowerCase() === 'approve').length;
+            const currentApprover  = (approvedCount < totalApprovers)
+                                    ? rowData.approvers[approvedCount]
+                                    : '';
+
+            tr.insertAdjacentHTML('beforeend', `
+              <td><span class="pill ${pillClass}">${summary}</span></td>
+              <td>${rowData.ticket}</td>
+              <td><span class="approval-pill approvers">${approvedCount}/${totalApprovers}</span></td>
+            `);
+
+            // One set of columns per approver slot (no resend here)
+            for (let i = 0; i < approverCount; i++) {
+              const approver = rowData.approvers[i] || '';
+              const rec      = rowData.approvals.find(r => r.approver === approver) || {};
+              tr.insertAdjacentHTML('beforeend', `
+                <td>${approver}</td>
+                <td>${rec.ts || ''}</td>
+                <td>
+                  <span class="approval-badge ${ (rec.action||'').toLowerCase() }">
+                    ${rec.action || ''}
+                  </span>
+                </td>
+                <td>${rec.comment || ''}</td>
+              `);
+            }
+            // now single “current” approver + one resend button
+            const current = rowData.approvers[rowData.approvals.length] || '';
+            tr.insertAdjacentHTML('beforeend', `
+              <td>${current}</td>
+              <td>
+                <button
+                  class="btn btn-sm btn-secondary resend-current-approval-btn"
+                  data-ticket="${rowData.ticket}"
+                  data-approver="${current}"
+                  ${current ? '' : 'disabled'}>
+                  Resend
+                </button>
+              </td>
+            `);
+
+            body.appendChild(tr);
+          });
+
+          // 4) Wire up the search box
+          document.getElementById('approvalSearch').oninput = e => {
+            const q = e.target.value.trim().toLowerCase();
+            document.querySelectorAll('#approvalHistoryBody tr')
+              .forEach(tr => {
+                tr.style.display = !q || tr.textContent.toLowerCase().includes(q)
+                  ? '' : 'none';
+              });
+          };
+
+          // 5) Show the modal
+          new bootstrap.Modal(
+            document.getElementById('approvalHistoryModal')
+          ).show();
+
+          // 6) Attach Resend listener only once
+          if (!window._resendListenerAdded) {
+              window._resendListenerAdded = true;
+              document
+                .getElementById('approvalHistoryModal')
+                .addEventListener('click', e => {
+                  const btn = e.target.closest('.resend-current-approval-btn');
+                if (!btn) return;
+                const origHtml = btn.innerHTML;
+                const ticket   = btn.dataset.ticket;
+                const approver = btn.dataset.approver;
+
+                btn.disabled = true;
+                btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+                showGlobalLoading();
+
+                google.script
+                  .run
+                  .withSuccessHandler(() => {
+                    hideGlobalLoading();
+                    showSuccessToast(`Approval request resent to ${approver}.`);
+                    btn.disabled = false;
+                    btn.innerHTML = origHtml;
+                  })
+                  .withFailureHandler(err => {
+                    hideGlobalLoading();
+                    showSuccessToast(`Error: ${err.message}`, true);
+                    btn.disabled = false;
+                    btn.innerHTML = origHtml;
+                  })
+                  .resendApprovalFor(ticket, approver);
+              });
+          }
+        })
+        .withFailureHandler(err => {
+          hideGlobalLoading();
+          showSuccessToast('Error loading approvals: ' + err.message, true);
+        })
+        .getApprovalOverview();
+    });
+
+
+
+   // 1) When loading existing rows:
+    document.getElementById('tabApprovers')
+      .addEventListener('shown.bs.tab', () => {
+        showGlobalLoading();
+        google.script.run
+          .withSuccessHandler(approverList => {
+            google.script.run
+              .withSuccessHandler(businessUnits => {
+                hideGlobalLoading();
+                window.businessUnits = businessUnits;
+                const body = document.getElementById('approversTableBody');
+                body.innerHTML = '';
+                // prepare your BU <options> once
+                const opts = businessUnits
+                  .map(u => `<option value="${u}">${u}</option>`)
+                  .join('');
+                approverList.forEach(row => {
+                  const tr = document.createElement('tr');
+                  tr.innerHTML = `
+                    <td>
+                      <select class="form-select form-select-sm lob-select">
+                        <option value="">-- Select Business Unit --</option>
+                        ${opts}
+                      </select>
+                    </td>
+                    <td><input type="email" class="form-control form-control-sm approver-input" placeholder="Approver 1"></td>
+                    <td><input type="email" class="form-control form-control-sm approver-input" placeholder="Approver 2"></td>
+                    <td><input type="email" class="form-control form-control-sm approver-input" placeholder="Approver 3"></td>
+                    <td><input type="email" class="form-control form-control-sm approver-input" placeholder="Approver 4"></td>
+                    <td>
+                      <button class="btn btn-sm btn-danger delete-approver-btn">
+                        Delete
+                      </button>
+                    </td>
+                  `;
+                  // restore values
+                  tr.querySelector('.lob-select').value = row.lob;
+                  row.approvers.forEach((email,i) => {
+                    tr.querySelectorAll('.approver-input')[i].value = email;
+                  });
+                  body.appendChild(tr);
+                });
+              })
+              .getBusinessUnits();
+          })
+          .getApproversData();
+      });
+
+    // 2) When you click “Add Business Unit”:
+    document.getElementById('addApproverRow')
+      .addEventListener('click', () => {
+        const body = document.getElementById('approversTableBody');
+        const tr   = document.createElement('tr');
+        const units = window.businessUnits || [];
+        const opts  = units.map(u => `<option value="${u}">${u}</option>`).join('');
+        tr.innerHTML = `
+          <td>
+            <select class="form-select form-select-sm lob-select">
+              <option value="">-- Select Business Unit --</option>
+              ${opts}
+            </select>
+          </td>
+          <td><input type="email" class="form-control form-control-sm approver-input" placeholder="Approver 1"></td>
+          <td><input type="email" class="form-control form-control-sm approver-input" placeholder="Approver 2"></td>
+          <td><input type="email" class="form-control form-control-sm approver-input" placeholder="Approver 3"></td>
+          <td><input type="email" class="form-control form-control-sm approver-input" placeholder="Approver 4"></td>
+          <td>
+            <button class="btn btn-sm btn-danger delete-approver-btn">
+              Delete
+            </button>
+          </td>
+        `;
+        body.appendChild(tr);
+      });
+
+    // 3) Wire up “Delete” to remove its row:
+    document.getElementById('approversTableBody')
+      .addEventListener('click', e => {
+        if (e.target.matches('.delete-approver-btn')) {
+          e.target.closest('tr').remove();
+        }
+      });
+
+
+
+
+    document.getElementById('saveApproversBtn').addEventListener('click', () => {
+      showGlobalLoading();
+      const rows = Array.from(
+        document.querySelectorAll('#approversTableBody tr')
+      ).map(tr => ({
+        lob:       tr.querySelector('.lob-select').value,
+        approvers: Array.from(tr.querySelectorAll('.approver-input')).map(i=>i.value)
+      }));
+      google.script
+        .run
+        .withSuccessHandler(() => {
+          hideGlobalLoading();
+          new bootstrap.Tab(document.getElementById('tabHistory')).show();
+          showSuccessToast('Approvers saved.');
+        })
+        .saveApproversData(rows);
+    });
+
+
+
+    // Show Change-Password modal
+    document.getElementById("changePassBtn").addEventListener("click", function() {
+      document.getElementById("changePassUsername").value = window.loggedInUsername;
+      document.getElementById("newPasswordField").value = "";
+      new bootstrap.Modal(document.getElementById("changePassModal")).show();
+    });
+
+    document.getElementById('submitChangePass').addEventListener('click', () => {
+      const btn = document.getElementById('submitChangePass');
+      // prevent double-click
+      if (btn.disabled) return;
+      showButtonLoading(btn);
+
+      const user   = document.getElementById('changePassUsername').value;
+      const oldPwd = document.getElementById('oldPasswordField').value;
+      const newPwd = document.getElementById('newPasswordField').value;
+
+      if (!oldPwd || !newPwd) {
+        hideButtonLoading(btn);
+        showSuccessToast('Please fill both old and new passwords.', true);
+        return;
+      }
+
+      google.script.run
+        .withSuccessHandler(res => {
+          hideButtonLoading(btn);
+          if (res.success) {
+            // hide modal before logging out
+            bootstrap.Modal.getInstance(document.getElementById('changePassModal')).hide();
+            showSuccessToast('Password changed—you’ve been logged out.');
+            // auto-logout UI
+            window.loggedInAdmin = '';
+            document.getElementById('ticketTableCard').style.display = 'none';
+            document.getElementById('loginCard').style.display = '';
+          } else {
+            showSuccessToast('Error: ' + res.error, true);
+          }
+        })
+        .withFailureHandler(err => {
+          hideButtonLoading(btn);
+          showSuccessToast('Error: ' + err.message, true);
+        })
+        .changeAdminPassword({
+          username:    user,
+          oldPassword: oldPwd,
+          newPassword: newPwd
+        });
+    });
+
+    function loadTickets() {
+      showGlobalLoading();
+      google.script.run.withSuccessHandler(function(result) {
+        hideGlobalLoading();
+
+        window.allTicketHeaders       = result.headers;
+        window.allTicketData          = result.data;
+        window.previousTicketData     = {};
+        window.previousApprovalStatus = {};
+
+        // seed previous status maps…
+        const approvalIdx = result.headers.indexOf("Approval Status");
+        result.data.forEach(function(row) {
+          const id = row[0].toString().trim();
+          window.previousTicketData[id]     = row[15];
+          window.previousApprovalStatus[id] = (row[approvalIdx] || "").toString().trim();
+        });
+
+        if (!result.data || !result.data.length) {
+          document.getElementById("ticketTable").innerHTML =
+            '<div class="alert alert-info">No tickets found.</div>';
+          return;
+        }
+
+        // 1) rebuild your table
+        buildTicketsTable();
+        previousTicketCount = result.data.length;
+
+        // 2) if Kanban is currently visible, re-build it too
+        const kanbanEl = document.getElementById('kanbanContainer');
+        if (kanbanEl.style.display === 'flex') {
+          loadKanban();
+        }
+      }).getAllTickets();
+    }
+
+
+    // after you kick off loadTickets(), also grab the logs once:
+    google.script
+      .run
+      .withSuccessHandler(function(logsResult) {
+        // logsResult.headers, logsResult.data
+        // data is an array of rows: [ timestamp, itid, action, user, ... ]
+        window.allLogs = logsResult.data;
+      })
+      .getLogs();
+
+
+
+    // Poll for new tickets and status changes
+      function pollForNewTickets() {
+        google.script.run.withSuccessHandler(function(result) {
+          if (!result || !result.data) return;
+
+          const newCount = result.data.length;
+          // 1) Show toasts for newly arrived tickets
+          if (newCount > previousTicketCount) {
+            const newTickets = result.data.slice(previousTicketCount);
+            newTickets.forEach(ticket => {
+              showSuccessToast("New ticket created: " + ticket[0]);
+            });
+            previousTicketCount = newCount;
+          }
+
+          // 2) Detect status / approval changes
+          const approvalIdx = result.headers.indexOf("Approval Status");
+          result.data.forEach(row => {
+            const id = row[0].toString().trim();
+            const currAppr = (row[approvalIdx] || "").toLowerCase();
+            const prevAppr = (previousApprovalStatus[id] || "").toLowerCase();
+            if (prevAppr !== currAppr) {
+              if (currAppr === "approved") {
+                showSuccessToast(`Ticket ${id} has been Approved.`);
+              } else if (currAppr === "declined") {
+                showSuccessToast(`Ticket ${id} has been Declined.`);
+              }
+            }
+            previousApprovalStatus[id] = currAppr;
+
+            const currStat = (row[15] || "").toString().toUpperCase().trim();
+            const prevStat = (previousTicketData[id] || "").toString().toUpperCase().trim();
+            if (prevStat !== currStat && currStat === "REOPENED") {
+              showSuccessToast(`Ticket ${id} has been reopened.`);
+            }
+            previousTicketData[id] = row[15];
+          });
+
+          // 3) Update globals
+          window.allTicketHeaders   = result.headers;
+          window.allTicketData      = result.data;
+          buildTicketsTable();
+
+          // 4) If Kanban is visible, re-draw it every poll
+          const kanbanDiv = document.getElementById('kanbanContainer');
+          if (kanbanDiv.style.display === 'flex') {
+            loadKanban();
+          }
+        }).getAllTickets();
+      }
+
+
+    function buildTicketsTable() {
+      const container = document.getElementById("ticketTable");
+      const currentScrollPos = container ? container.scrollTop : 0;
+      let filterValues = {};
+      const existingFilters = document.querySelectorAll("thead tr:nth-child(2) select.filter-select");
+      existingFilters.forEach(select => {
+        const col = select.getAttribute("data-col");
+        let vals = $(select).val() || [];
+        filterValues[col] = vals;
+      });
+      window.currentFilterValues = filterValues;
+      var newHeaders = orderIndices.map(i => window.allTicketHeaders[i]);
+      let displayData = [];
+      let mapping = [];
+      for (let i = 0; i < window.allTicketData.length; i++) {
+        const row = window.allTicketData[i];
+        let newRow = orderIndices.map(j => row[j]);
+        displayData.push(newRow);
+        mapping.push(i);
+      }
+      displayData.sort(function(a, b) {
+        let numA = parseInt(a[1].replace("ITID", ""));
+        let numB = parseInt(b[1].replace("ITID", ""));
+        return window.sortTicketOrder === "asc" ? numA - numB : numB - numA;
+      });
+      mapping.sort(function(i, j) {
+        let numI = parseInt(window.allTicketData[i][0].replace("ITID", ""));
+        let numJ = parseInt(window.allTicketData[j][0].replace("ITID", ""));
+        return window.sortTicketOrder === "asc" ? numI - numJ : numJ - numI;
+      });
+      window.displayMapping = mapping;
+
+      let headerHTML = "<tr>";
+      newHeaders.forEach((h, index) => {
+        let icon = '<i class="bi bi-list-ul"></i>';
+        if (index === 1) {
+          headerHTML += `<th>${icon}<a href="javascript:void(0)" id="sortTicketHeader" onclick="toggleSortTicketOrder(); return false;">${h}</a></th>`;
+        } else {
+          headerHTML += `<th>${icon}${h}</th>`;
+        }
+      });
+      // ─── First header row (column titles) ───
+      headerHTML += `<th class="action-col">Actions</th>`;
+      headerHTML += `<th class="validate-col">Validate</th>`;
+      headerHTML += `</tr>`;
+
+      // ─── Second header row (filters) ───
+      headerHTML += `<tr>`;
+      newHeaders.forEach((h, index) => {
+        headerHTML += `<th>
+          <select class="filter-select" data-col="${index}" multiple="multiple"></select>
+        </th>`;
+      });
+      // two blank <th> for the Actions + Validate columns
+      headerHTML += `<th></th><th></th>`;
+      headerHTML += `</tr>`;
+
+
+
+      let bodyHTML = "";
+      // find Approval Status column index in newHeaders
+      const approvalIdx = newHeaders.indexOf("Approval Status");
+      displayData.forEach((dispRow, dispIdx) => {
+      // map back to the original row to grab the true ticket number
+      const origIndex = window.displayMapping[dispIdx];
+      const origRow   = window.allTicketData[origIndex];
+      const ticketNum = origRow[0];  // e.g. "ITID000123"
+
+      // determine classes (blinking, approved, locked, etc.)
+      let rowClass   = "";
+      const prioIdx  = newHeaders.indexOf("Priority Level");
+      const statIdx  = newHeaders.indexOf("Status");
+      const apprIdx  = newHeaders.indexOf("Approval Status");
+
+      if (
+        dispRow[apprIdx] &&
+        dispRow[apprIdx].toString().toLowerCase() === "declined"
+      ) {
+        dispRow[statIdx] = "Canceled";
+      }
+
+      const prioVal  = (dispRow[prioIdx] || "").toString().toLowerCase();
+      const statVal  = (dispRow[statIdx] || "").toString();
+      const apprVal  = (dispRow[apprIdx] || "").toString();
+
+      // old (too coarse):
+      // const isLocked = statVal === "Reopened" || apprVal.startsWith("Pending Approval");
+
+      // new:
+      const isReopenLocked = statVal.toLowerCase().trim() === "reopened";
+      const isApprovalLocked  = statVal === "Open"
+                              && apprVal.startsWith("Pending Approval");
+      const isLocked          = isReopenLocked || isApprovalLocked;
+
+      const activeBlinkStatuses = ["open","reopened","in progress","on hold"];
+      if (prioVal === "critical" && activeBlinkStatuses.includes(statVal.toLowerCase())) {
+        rowClass += " blinking";
+      }
+
+      // Only highlight rows green when Approval Status is “Approved”
+      // AND the ticket is still Open, In Progress or Reopened.
+      const isApproved = apprVal.toLowerCase() === "approved";
+      const s = statVal.toLowerCase();
+      if ( isApproved && (s === "open" || s === "in progress" || s === "reopened") ) {
+        rowClass += " approved-row";
+      }
+
+      // add your rowClass as before
+      if (isLocked) rowClass += " locked-row";
+
+
+      // open the <tr> with correct data-ticket
+      bodyHTML += `<tr class="${rowClass}" data-ticket="${ticketNum}">`;
+
+      // render each cell
+      dispRow.forEach((cell, i) => {
+        let cellContent = cell || "";
+
+        // 1) Ticket Number column → status‐button or link
+        if (i === 0 && cellContent) {
+          const cls = cellContent.toLowerCase().replace(/\s+/g,'-');
+          if (isLocked) {
+            cellContent = `<span class="status-btn status-${cls}">${cellContent}</span>`;
+          } else {
+            cellContent = `
+              <a href="javascript:void(0)"
+                class="status-btn status-${cls}"
+                onclick="openUpdateModalByIndex(${dispIdx});return false;">
+                ${cellContent}
+              </a>`;
+          }
+          bodyHTML += `<td>${cellContent}</td>`;
+          return;
+        }
+
+        // 2) Attachment column
+        if (newHeaders[i] === "Attachment" && cellContent) {
+          let links   = cellContent.split(",").map(l => l.trim()).filter(l => l);
+          let linkHtml = '<div class="d-flex justify-content-center">';
+          links.forEach(link => {
+            linkHtml += `<a href="${link}" target="_blank" style="margin:2px;">
+                          <i class="bi bi-paperclip"></i>
+                        </a>`;
+          });
+          linkHtml += '</div>';
+          bodyHTML += `<td>${linkHtml}</td>`;
+          return;
+        }
+
+        // 3) Additional Request Details (JSON → key: value)
+        if (newHeaders[i] === "Additional Request Details" && cellContent) {
+          try {
+            let obj        = JSON.parse(cellContent);
+            let displayStr = "";
+            Object.entries(obj).forEach(([key, v]) => {
+              if (v) {
+                const label = key
+                  .replace(/([A-Z])/g,' $1')
+                  .replace(/^./,c=>c.toUpperCase());
+                displayStr += `<strong>${label}:</strong> ${v}<br>`;
+              }
+            });
+            bodyHTML += `<td>${displayStr}</td>`;
+          } catch {
+            bodyHTML += `<td>${cellContent}</td>`;
+          }
+          return;
+        }
+
+        // 4) Request Type pill
+        if (newHeaders[i] === "Request Type" && cellContent) {
+          bodyHTML += `<td>
+            <span class="pill pill-request-type-col">${cellContent}</span>
+          </td>`;
+          return;
+        }
+
+        // 5) Approval Status pill
+        if (newHeaders[i] === "Approval Status" && cellContent) {
+          let pillClass;
+          const text = cellContent.toLowerCase();
+          if (text === "approved") {
+            pillClass = "pill-approved";
+          } else if (text === "declined") {
+            pillClass = "pill-declined";
+          } else {
+            pillClass = "pill-generic";
+          }
+          bodyHTML += `<td>
+            <span class="pill ${pillClass}">${cellContent}</span>
+          </td>`;
+          return;
+        }
+
+        // 6) Ticket Category pill
+        if (newHeaders[i] === "Ticket Category" && cellContent) {
+          const key = cellContent.toLowerCase().replace(/\s+/g,'-');
+          bodyHTML += `<td>
+            <span class="pill pill-${key}">${cellContent}</span>
+          </td>`;
+          return;
+        }
+
+        // 7) Priority Level pill
+        if (newHeaders[i] === "Priority Level" && cellContent) {
+          const tag = cellContent.toLowerCase().replace(/\s+/g,'-');
+          bodyHTML += `<td>
+            <span class="pill pill-${tag}">${cellContent}</span>
+          </td>`;
+          return;
+        }
+
+        // 8) Timestamp formatting
+        if (newHeaders[i] === "Timestamp" && cellContent) {
+          cellContent = new Date(cellContent).toLocaleString();
+        }
+
+        // 9) Fallback for all other columns
+        bodyHTML += `<td>${cellContent}</td>`;
+      });
+
+      // ── Actions + Validate columns ───────────────────────────────────────
+      if (isReopenLocked) {
+        // Reopened tickets get a Validate button (and disable Edit)
+        bodyHTML += `
+          <td class="action-col locked-row">
+            <button class="btn btn-sm btn-primary" disabled>Edit</button>
+          </td>
+          <td class="validate-col">
+            <button
+              class="btn btn-sm btn-warning"
+              onclick="openValidateReopenModalByIndex(${dispIdx}); return false;">
+              Validate
+            </button>
+          </td>`;
+      }
+      else if (isApprovalLocked) {
+        // Open + Pending-Approval tickets get locked edit, but no Validate btn
+        bodyHTML += `
+          <td class="action-col locked-row">
+            <button class="btn btn-sm btn-primary" disabled>Edit</button>
+          </td>
+          <td class="validate-col"></td>`;
+      }
+      else {
+        // fully editable tickets
+        bodyHTML += `
+          <td class="action-col">
+            <button class="btn btn-sm btn-primary"
+                    onclick="openEditModalByIndex(${dispIdx});return false;">
+              Edit
+            </button>
+          </td>
+          <td class="validate-col"></td>`;
+      }
+
+
+        bodyHTML += `</tr>`;
+      });
+
+      if (!document.getElementById("ticketsTable")) {
+        container.innerHTML = `<div class="table-responsive"><table class="table table-bordered" id="ticketsTable"><thead>${headerHTML}</thead><tbody>${bodyHTML}</tbody></table></div>`;
+      } else {
+        let table = document.getElementById("ticketsTable");
+        let thead = table.querySelector("thead");
+        let tbody = table.querySelector("tbody");
+        if (thead) { thead.innerHTML = headerHTML; }
+        if (tbody) { tbody.innerHTML = bodyHTML; }
+      }
+
+      addColumnToggles(newHeaders);
+      buildColumnFilters();
+      const newFilterSelects = document.querySelectorAll("thead tr:nth-child(2) select.filter-select");
+      newFilterSelects.forEach(select => {
+        const col = select.getAttribute("data-col");
+        if (filterValues[col] !== undefined && filterValues[col].length > 0) {
+          $(select).val(filterValues[col]);
+          $(select).trigger("change");
+        }
+      });
+      filterRows();
+      toggleColumn(3, false);
+      toggleColumn(7, false);
+      toggleColumn(15, false);
+      toggleColumn(16, false);
+      if (container) container.scrollTop = currentScrollPos;
+    }
+
+    const _origBuild = buildTicketsTable;
+    buildTicketsTable = function() {
+      _origBuild();
+
+      // 38-color palette
+      const palette = [
+        "9FD0E7","B4E5E7","FFFDE3","FFFBD4","C5E7CD","A1D4AD"
+      ];
+
+      // now including Ticket Category
+      const cols = ["Line Of Business","Office Site","Request Type","Ticket Category"];
+      const headers = Array.from(
+        document.querySelectorAll("#ticketsTable thead tr:first-child th")
+      ).map(th => th.textContent.trim());
+      const colIdx = {};
+      cols.forEach(name => {
+        const i = headers.indexOf(name);
+        if (i > -1) colIdx[name] = i;
+      });
+
+      const valueColor = {};
+      let nextColor = 0;
+
+      document.querySelectorAll("#ticketsTable tbody tr").forEach(tr => {
+        Object.values(colIdx).forEach(idx => {
+          const td = tr.cells[idx];
+          if (!td) return;
+          const txt = td.textContent.trim();
+          if (!txt) return;
+          // assign palette color
+          if (!valueColor[txt]) {
+            valueColor[txt] = "#" + palette[nextColor++ % palette.length];
+          }
+          const span = td.querySelector(".pill");
+          if (span) {
+            span.style.backgroundColor = valueColor[txt];
+            span.style.color = "#333";
+          }
+        });
+      });
+    };
+
+    function addColumnToggles(headers) {
+      const table = document.getElementById("ticketsTable");
+      if (!table) return;
+      const headerCells = table.querySelectorAll("thead tr:first-child th");
+      let panelHTML = '<strong>Toggle Columns: </strong>';
+      headerCells.forEach((th, index) => {
+        if (index === headerCells.length - 1) return;
+        let checked = (index === 3 || index === 7 || index === 15 || index === 16) ? "" : "checked";
+        panelHTML += `<label><input type="checkbox" ${checked} data-col="${index}" /> ${th.textContent}</label>`;
+      });
+      document.getElementById("columnTogglePanel").innerHTML = panelHTML;
+      const checkboxes = document.querySelectorAll("#columnTogglePanel input[type='checkbox']");
+      checkboxes.forEach(cb => {
+        cb.addEventListener("change", function() {
+          const col = this.getAttribute("data-col");
+          toggleColumn(col, this.checked);
+        });
+      });
+    }
+
+    function toggleColumn(colIndex, show) {
+      const table = document.getElementById("ticketsTable");
+      if (!table) return;
+      table.querySelectorAll("thead tr").forEach(tr => {
+        if (tr.cells[colIndex]) { tr.cells[colIndex].style.display = show ? "" : "none"; }
+      });
+      table.querySelectorAll("tbody tr").forEach(tr => {
+        if (tr.cells[colIndex]) { tr.cells[colIndex].style.display = show ? "" : "none"; }
+      });
+    }
+
+    function buildColumnFilters() {
+      const table = document.getElementById("ticketsTable");
+      if (!table) return;
+      const thead = table.querySelector("thead");
+      const filterSelects = thead.querySelectorAll("tr:nth-child(2) select.filter-select");
+      const tbody = table.querySelector("tbody");
+      const rows = tbody.querySelectorAll("tr");
+      filterSelects.forEach(select => {
+        select.innerHTML = "";
+        const colIndex = parseInt(select.getAttribute("data-col"));
+        let uniqueVals = new Set();
+        rows.forEach(tr => {
+          const td = tr.cells[colIndex];
+          if (td) { uniqueVals.add(td.textContent.trim()); }
+        });
+        uniqueVals.delete("");
+        const sortedVals = Array.from(uniqueVals).sort();
+        sortedVals.forEach(val => { select.innerHTML += `<option value="${val}">${val}</option>`; });
+        $(select).select2({
+          placeholder: "All",
+          allowClear: true,
+          width: "100%",
+          dropdownParent: $("#ticketTableCard")
+        });
+        $(select).on("change", function() {
+          const col = select.getAttribute("data-col");
+          let vals = $(select).val() || [];
+          window.currentFilterValues[col] = vals;
+          filterRows();
+        });
+      });
+    }
+
+    function filterKanban() {
+      const q = document.getElementById("globalSearch").value.trim().toLowerCase();
+      document.querySelectorAll("#kanbanContainer .kanban-card").forEach(card => {
+        const txt = card.textContent.toLowerCase();
+        card.style.display = !q || txt.includes(q) ? "" : "none";
+      });
+    }
+
+    function filterRows() {
+      const table = document.getElementById("ticketsTable");
+      if (!table) return;
+      const thead = table.querySelector("thead");
+      const filterSelects = thead.querySelectorAll("tr:nth-child(2) select.filter-select");
+      const rows = table.querySelectorAll("tbody tr");
+      const globalSearchValue = document.getElementById("globalSearch").value.trim().toLowerCase();
+      rows.forEach(tr => {
+        let pass = true;
+        filterSelects.forEach((sel) => {
+          const colIndex = parseInt(sel.getAttribute("data-col"));
+          let selectedValues = $(sel).val() || [];
+          if (selectedValues.length > 0) {
+            const td = tr.cells[colIndex];
+            if (td) {
+              let cellVal = td.textContent.trim();
+              if (selectedValues.indexOf(cellVal) === -1) { pass = false; }
+            }
+          }
+        });
+        if (pass && globalSearchValue) {
+          const rowText = tr.textContent.trim().toLowerCase();
+          if (!rowText.includes(globalSearchValue)) { pass = false; }
+        }
+        tr.style.display = pass ? "" : "none";
+      });
+    }
+
+    function openApprovalsModal(ticketNumber) {
+      google.script
+        .run
+        .withSuccessHandler(function(rows) {
+          if (!rows || rows.length === 0) {
+            document.getElementById('approvalModalBody')
+                    .innerHTML = '<div class="alert alert-info">No approvals yet.</div>';
+          } else {
+            var html = '<table class="table table-bordered"><thead><tr>' +
+                      '<th>Ticket</th>';
+            rows.forEach(function(r,i) {
+              html += `<th>Approver ${i+1}<br><small>${r.approver}</small></th>` +
+                      `<th>Timestamp</th><th>Action</th><th>Comment</th>`;
+            });
+            html += '</tr></thead><tbody><tr>' +
+                    `<td>${ticketNumber}</td>`;
+            rows.forEach(function(r) {
+              html += `<td></td>` +  // placeholder under approver header
+                      `<td>${new Date(r.timestamp).toLocaleString()}</td>` +
+                      `<td>${r.action}</td>` +
+                      `<td>${r.comment || ''}</td>`;
+            });
+            html += '</tr></tbody></table>';
+            document.getElementById('approvalModalBody').innerHTML = html;
+          }
+          new bootstrap.Modal(document.getElementById('approvalModal')).show();
+        })
+        .getApprovalsByTicket(ticketNumber);
+    }
+
+
+    function openEditModalByIndex(displayIndex) {
+      const origIndex = window.displayMapping[displayIndex];
+      const row       = window.allTicketData[origIndex];
+      const headers   = window.allTicketHeaders;
+
+      // ── 1) Compute “effectiveStatus” up front ──────────────────────────
+      const statIdx = headers.indexOf("Status");
+      const apprIdx = headers.indexOf("Approval Status");
+      let effectiveStatus = row[statIdx] || "";
+      if ((row[apprIdx] || "").toString().toLowerCase() === "declined") {
+        effectiveStatus = "Canceled";
+      }
+
+      // ── 2) Service-Request branch ─────────────────────────────────────
+      if (row[7] === "Service Request") {
+        window.isServiceRequestEdit = true;
+
+        // locate the "Additional Request Details" column
+        const detailsCol = headers.indexOf("Additional Request Details");
+        const detailsJson = detailsCol >= 0 ? row[detailsCol] : "";
+
+        // build a human-readable list, dropping empty entries
+        let detailsText = "";
+        try {
+          const obj = JSON.parse(detailsJson);
+          detailsText = Object.entries(obj)
+            .filter(([key, val]) => val && val.toString().trim() !== "")
+            .map(([key, val]) => {
+              const label = key
+                .replace(/([A-Z])/g, " $1")
+                .replace(/^./, c => c.toUpperCase());
+              return `${label}: ${val}`;
+            })
+            .join("\n");
+        } catch (_) {
+          detailsText = "";
+        }
+
+        // build the form HTML
+        let formHtml =
+          `<div class="row">
+            <!-- Left Column: Basic Information -->
+            <div class="col-md-6"><div class="card mb-2"><div class="card-header py-1 text-center small">Basic Information</div><div class="card-body p-2">
+              <div class="mb-2"><label class="form-label small">Request Number</label><input type="text" class="form-control readonly-field" id="editField_0" value="${row[0]}" readonly></div>
+              <div class="mb-2"><label class="form-label small">Timestamp</label><input type="text" class="form-control readonly-field" id="editField_1" value="${row[1]}" readonly></div>
+              <div class="mb-2"><label class="form-label small">Employee ID</label><input type="text" class="form-control readonly-field" id="editField_2" value="${row[2]}" readonly></div>
+              <div class="mb-2"><label class="form-label small">Employee Name</label><input type="text" class="form-control readonly-field" id="editField_3" value="${row[3]}" readonly></div>
+              <div class="mb-2"><label class="form-label small">Line Of Business</label><input type="text" class="form-control readonly-field" id="editField_4" value="${row[4]}" readonly></div>
+              <div class="mb-2"><label class="form-label small">Office Site</label><input type="text" class="form-control readonly-field" id="editField_5" value="${row[5]}" readonly></div>
+              <div class="mb-2"><label class="form-label small">Email Address</label><input type="text" class="form-control readonly-field" id="editField_6" value="${row[6]}" readonly></div>
+            </div></div></div>
+
+            <!-- Right Column: Editable Details -->
+            <div class="col-md-6"><div class="card mb-2"><div class="card-header py-1 text-center small">Editable Details</div><div class="card-body p-2">
+              <div class="mb-2"><label class="form-label small">Ticket Category</label><select class="form-select readonly-field" id="editTicketCategory" required disabled><option value="Service Request" selected>Service Request</option></select></div>
+              <div class="mb-2"><label class="form-label small">Priority Level</label><select class="form-select" id="editPriorityLevel" required><option value="">--Select--</option><option value="Critical">Critical</option><option value="High">High</option><option value="Medium">Medium</option><option value="Low">Low</option></select></div>
+              <div class="mb-2"><label class="form-label small">Request Type</label><input type="text" class="form-control" id="editRequestType" value="${row[13] || ''}" required></div>
+              <div class="mb-2">
+                <label class="form-label small">Additional Request Details</label>
+                <textarea id="editAdditionalDetails" class="form-control readonly-field" rows="4" readonly>${detailsText}</textarea>
+              </div>
+              <div class="mb-2"><label class="form-label small">Status</label><select class="form-select" id="editStatus" required><option value="">--Select--</option><option value="Open">Open</option><option value="Reopened">Reopened</option><option value="In Progress">In Progress</option><option value="Completed">Completed</option><option value="On Hold">On Hold</option><option value="Canceled">Canceled</option></select></div>
+              <div class="mb-2"><label class="form-label small">Remarks</label><textarea class="form-control readonly-field" id="editRemarks" rows="2" readonly>${row[20] || ''}</textarea></div>
+            </div></div></div>
+          </div>
+
+          <div class="row"><div class="col-md-12 mb-2"><div class="card"><div class="card-header py-1 text-center small">IT In-charge</div><div class="card-body p-2"><input type="text" class="form-control readonly-field" id="editItIncharge" readonly></div></div></div></div>
+          <div class="row"><div class="col-md-12 mb-2"><div class="card"><div class="card-header py-1 text-center small">Solution/Remarks</div><div class="card-body p-2"><textarea class="form-control" id="editSolutionRemarks" rows="3" required></textarea></div></div></div></div>
+          <div class="row"><div class="col-md-12 mb-2"><div class="card"><div class="card-header py-1 text-center small">Reason for Edit</div><div class="card-body p-2"><textarea class="form-control" id="editReason" rows="2" placeholder="Enter your reason here..." required></textarea></div></div></div></div>
+          <input type="hidden" id="editTicketNumber" value="${row[0]}">`;
+
+        // inject into DOM
+        document.getElementById("editFormContainer").innerHTML = formHtml;
+
+        // populate default values (using effectiveStatus!)
+        setTimeout(function() {
+          document.getElementById("editPriorityLevel").value        = row[8]  || "";
+          document.getElementById("editRequestType").value          = row[13] || "";
+          document.getElementById("editAdditionalDetails").value    = detailsText;
+          document.getElementById("editStatus").value               = effectiveStatus;
+          document.getElementById("editItIncharge").value           = window.loggedInAdmin;
+          document.getElementById("editRemarks").value              = row[20] || "";
+          // auto‐grow the details textarea
+          const ta = document.getElementById("editAdditionalDetails");
+          if (ta) {
+            ta.style.height = 'auto';
+            ta.style.height = ta.scrollHeight + 'px';
+          }
+        }, 100);
+
+        new bootstrap.Modal(document.getElementById("editModal")).show();
+        return;
+      }
+
+      // ── Incident branch ───────────────────────────────────────────────
+      window.isServiceRequestEdit = false;
+
+      // build the incident‐form HTML
+      let formHtml = `<div class="row">`;
+      const leftFields = [
+        { label: "Request Number", index: 0 },
+        { label: "Timestamp", index: 1 },
+        { label: "Employee ID", index: 2 },
+        { label: "Employee Name", index: 3 },
+        { label: "Line Of Business", index: 4 },
+        { label: "Office Site", index: 5 },
+        { label: "Email Address", index: 6 }
+      ];
+      leftFields.forEach(f => {
+        const val = row[f.index] || "";
+        formHtml += `
+          <div class="col-md-6">
+            <div class="card mb-2">
+              <div class="card-header py-1 text-center small">${f.label}</div>
+              <div class="card-body p-2">
+                <input type="text" class="form-control readonly-field" id="editField_${f.index}" value="${val}" readonly>
+              </div>
+            </div>
+          </div>`;
+      });
+      formHtml += `</div>
+        <div class="row">
+          <div class="col-md-6">
+            <div class="card mb-2">
+              <div class="card-header py-1 text-center small">Editable Details</div>
+              <div class="card-body p-2">
+                <div class="mb-2">
+                  <label class="form-label small">Ticket Category</label>
+                  <select class="form-select readonly-field" id="editTicketCategory" disabled>
+                    <option value="Incident" selected>Incident</option>
+                  </select>
+                </div>
+                <div class="mb-2">
+                  <label class="form-label small">Priority Level</label>
+                  <select class="form-select" id="editPriorityLevel" required>
+                    <option value="">--Select--</option>
+                    <option value="Critical">Critical</option>
+                    <option value="High">High</option>
+                    <option value="Medium">Medium</option>
+                    <option value="Low">Low</option>
+                  </select>
+                </div>
+                <div class="mb-2">
+                  <label class="form-label small">Issue Classification</label>
+                  <select class="form-select" id="editIssueClassification" required>
+                    <option value="">--Select--</option>
+                    <option value="Hardware">Hardware</option>
+                    <option value="Software">Software</option>
+                    <option value="Server">Server</option>
+                    <option value="Network">Network</option>
+                    <option value="IT Asset">IT Asset</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+                <div class="mb-2">
+                  <label class="form-label small">Issue Description</label>
+                  <textarea class="form-control" id="editRequestDescription" rows="2" required></textarea>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="card mb-2">
+              <div class="card-header py-1 text-center small">Status & Remarks</div>
+              <div class="card-body p-2">
+                <div class="mb-2">
+                  <label class="form-label small">Status</label>
+                  <select class="form-select" id="editStatus" required>
+                    <option value="">--Select--</option>
+                    <option value="Open">Open</option>
+                    <option value="Reopened">Reopened</option>
+                    <option value="In Progress">In Progress</option>
+                    <option value="Completed">Completed</option>
+                    <option value="On Hold">On Hold</option>
+                    <option value="Canceled">Canceled</option>
+                  </select>
+                </div>
+                <div class="mb-2">
+                  <label class="form-label small">Remarks</label>
+                  <textarea class="form-control readonly-field" id="editRemarks" rows="2" readonly>${row[20] || ''}</textarea>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-md-12 mb-2">
+            <div class="card">
+              <div class="card-header py-1 text-center small">IT In-charge</div>
+              <div class="card-body p-2">
+                <input type="text" class="form-control readonly-field" id="editItIncharge" readonly>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-md-12 mb-2">
+            <div class="card">
+              <div class="card-header py-1 text-center small">Solution/Remarks</div>
+              <div class="card-body p-2">
+                <textarea class="form-control" id="editSolutionRemarks" rows="3" required></textarea>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-md-12 mb-2">
+            <div class="card">
+              <div class="card-header py-1 text-center small">Reason for Edit</div>
+              <div class="card-body p-2">
+                <textarea class="form-control" id="editReason" rows="2" placeholder="Enter your reason here..." required></textarea>
+              </div>
+            </div>
+          </div>
+        </div>
+        <input type="hidden" id="editTicketNumber" value="${row[0]}">`;
+
+      // inject into DOM
+      document.getElementById("editFormContainer").innerHTML = formHtml;
+
+      // populate default values (using effectiveStatus!)
+      setTimeout(function() {
+        document.getElementById("editPriorityLevel").value        = row[8]  || "";
+        document.getElementById("editIssueClassification").value = row[10] || "";
+        document.getElementById("editRequestDescription").value   = row[11] || "";
+        document.getElementById("editStatus").value               = effectiveStatus;
+        document.getElementById("editItIncharge").value           = window.loggedInAdmin;
+        document.getElementById("editRemarks").value              = row[20] || "";
+      }, 100);
+
+      new bootstrap.Modal(document.getElementById("editModal")).show();
+    }
+    window.openEditModalByIndex = openEditModalByIndex;
+
+
+
+    // Submit Edit handler
+    document.getElementById("submitEdit").addEventListener("click", function () {
+      const btn = this;
+      if (btn.disabled) return;
+      showButtonLoading(btn);
+
+      const ticketNumber = document.getElementById("editTicketNumber").value;
+      const editReason = document.getElementById("editReason").value.trim();
+      if (!editReason) {
+        showSuccessToast("Error: Please provide a reason for the edit.");
+        hideButtonLoading(btn);
+        return;
+      }
+
+      if (window.isServiceRequestEdit) {
+        const newStatus = document.getElementById("editStatus").value;
+        const newPriority = document.getElementById("editPriorityLevel").value;
+        const newRequestType = document.getElementById("editRequestType").value.trim();
+        if (!newStatus) {
+          showSuccessToast("Error: Please select a status.");
+          hideButtonLoading(btn);
+          return;
+        }
+        if (!newPriority) {
+          showSuccessToast("Error: Please select a priority level.");
+          hideButtonLoading(btn);
+          return;
+        }
+        if (!newRequestType) {
+          showSuccessToast("Error: Please enter a request type.");
+          hideButtonLoading(btn);
+          return;
+        }
+        let oldRow = window.allTicketData.find(r => r[0] === ticketNumber);
+        if (!oldRow) {
+          showSuccessToast("Error: Ticket not found.");
+          hideButtonLoading(btn);
+          return;
+        }
+        let newData = [];
+        newData[0] = oldRow[0];
+        newData[1] = oldRow[1];
+        newData[2] = oldRow[2];
+        newData[3] = oldRow[3];
+        newData[4] = oldRow[4];
+        newData[5] = oldRow[5];
+        newData[6] = oldRow[6];
+        newData[7] = "Service Request";
+        newData[8] = newPriority;
+        newData[9] = "";
+        newData[10] = "";
+        newData[11] = "";
+        newData[12] = oldRow[12];
+        newData[13] = newRequestType;
+        newData[14] = oldRow[14];
+        newData[15] = newStatus;
+        newData[16] = window.loggedInAdmin;
+        newData[17] = document.getElementById("editSolutionRemarks").value.trim();
+        newData[18] = oldRow[18];
+        newData[19] = oldRow[19];
+        newData[20] = oldRow[20];
+        google.script.run.withSuccessHandler(function () {
+          showSuccessToast(ticketNumber + " has been edited.");
+          loadTickets();
+          const editModal = bootstrap.Modal.getInstance(document.getElementById("editModal"));
+          editModal.hide();
+          window.isServiceRequestEdit = false;
+          hideButtonLoading(btn);
+        }).editTicket(ticketNumber, newData, editReason);
+      } else {
+        const oldRow = window.allTicketData.find(r => r[0] === ticketNumber);
+        if (!oldRow) {
+          showSuccessToast("Error: Ticket not found.");
+          hideButtonLoading(btn);
+          return;
+        }
+        const newData = oldRow.slice();
+        newData[8]  = document.getElementById("editPriorityLevel").value;
+        newData[10] = document.getElementById("editIssueClassification").value;
+        newData[11] = document.getElementById("editRequestDescription").value;
+        newData[15] = document.getElementById("editStatus").value;
+        newData[16] = window.loggedInAdmin;
+        newData[17] = document.getElementById("editSolutionRemarks").value.trim();
+
+        google.script.run.withSuccessHandler(function () {
+          showSuccessToast(ticketNumber + " has been edited.");
+          loadTickets();
+          bootstrap.Modal.getInstance(document.getElementById("editModal")).hide();
+          hideButtonLoading(btn);
+        }).editTicket(ticketNumber, newData, editReason);
+      }
+    });
+
+    // Open Update Modal
+    function openUpdateModalByIndex(displayIndex) {
+      const origIndex = window.displayMapping[displayIndex];
+      const row       = window.allTicketData[origIndex];
+      const headers   = window.allTicketHeaders;
+
+      // find the column indexes
+      const statIdx = headers.indexOf("Status");
+      const apprIdx = headers.indexOf("Approval Status");
+
+      // determine the effective status (force “Canceled” if approval was Declined)
+      let effectiveStatus = row[statIdx] || "";
+      if ((row[apprIdx] || "").toString().toLowerCase() === "declined") {
+        effectiveStatus = "Canceled";
+      }
+
+      // populate the form fields
+      document.getElementById("ticketNumberDisplay").value = row[0];
+      document.getElementById("updateTicketNumber").value   = row[0];
+      document.getElementById("itIncharge").value          = window.loggedInAdmin;
+      document.getElementById("newStatus").value           = effectiveStatus;
+      document.getElementById("resolutionRemarks").value   = "";
+
+      // show the modal
+      new bootstrap.Modal(document.getElementById("updateModal")).show();
+    }
+    window.openUpdateModalByIndex = openUpdateModalByIndex;
+
+
+    // Submit Update handler
+    document.getElementById("submitUpdate").addEventListener("click", function() {
+      const btn               = this;
+      if (btn.disabled) return;
+      showButtonLoading(btn);
+
+      const ticketNumber      = document.getElementById("updateTicketNumber").value;
+      const newStatus         = document.getElementById("newStatus").value;
+      const itIncharge        = document.getElementById("itIncharge").value;
+      const resolutionRemarks = document.getElementById("resolutionRemarks").value.trim();
+
+      // stash the old status if they chose “Reopened”
+      const oldRow    = window.allTicketData.find(r => r[0] === ticketNumber);
+      const oldStatus = oldRow ? oldRow[15] : "";
+      if (newStatus === "Reopened") {
+        window._reopenPrevStatuses[ticketNumber] = oldStatus;
+      }
+
+      if (!newStatus) {
+        showSuccessToast("Error: Please select a new status.");
+        hideButtonLoading(btn);
+        return;
+      }
+      if (!resolutionRemarks) {
+        showSuccessToast("Error: Please provide resolution remarks.");
+        hideButtonLoading(btn);
+        return;
+      }
+
+      google.script.run
+        .withSuccessHandler(function() {
+          showSuccessToast(ticketNumber + " has been updated to " + newStatus + ".");
+          loadTickets();
+          bootstrap.Modal.getInstance(document.getElementById("updateModal")).hide();
+          hideButtonLoading(btn);
+        })
+        .updateTicket(ticketNumber, newStatus, itIncharge, resolutionRemarks, "Status updated");
+    });
+
+      // stash and render the simple list
+      document.getElementById('manageUsersBtn').addEventListener('click', () => {
+        showGlobalLoading();
+        google.script.run
+          .withSuccessHandler(users => {
+            hideGlobalLoading();
+            window.adminUsers = users;             // keep in memory
+            renderAdminUsersTable();
+            new bootstrap.Modal(
+              document.getElementById('manageUsersModal')
+            ).show();
+          })
+          .getAdminUsers();
+      });
+
+      // Toggle between Table and Kanban
+      document.getElementById('kanbanViewBtn').addEventListener('click', function() {
+        const tableWrap = document.getElementById('ticketTable');
+        const kanbanDiv = document.getElementById('kanbanContainer');
+
+        if (kanbanDiv.style.display === 'flex') {
+          // → Back to Table view
+          kanbanDiv.style.display = 'none';
+          tableWrap.style.display = 'block';
+          this.innerHTML = '<i class="bi bi-kanban-fill"></i>';
+          this.title = 'Kanban View';
+        } else {
+          // → Switch into Kanban view
+          tableWrap.style.display = 'none';
+          kanbanDiv.style.display = 'flex';
+          loadKanban();
+          this.innerHTML = '<i class="bi bi-list-ul"></i>';
+          this.title = 'Table View';
+        }
+      });
+
+      function loadKanban() {
+      // First fetch the latest Logs so editor initials update without a page reload
+      google.script.run.withSuccessHandler(logsResult => {
+        window.allLogs = logsResult.data;  // each element: [timestamp, ITID, action, user, ...]
+
+        const container = document.getElementById('kanbanContainer');
+
+        // ─── Preserve each column’s scrollTop ────────────────────────────
+        const scrollMap = {};
+        container.querySelectorAll('.kanban-column').forEach(col => {
+          // header text is like "Open / 12"
+          const headerText = col.querySelector('h3').textContent;
+          const status = headerText.split('/')[0].trim();
+          scrollMap[status] = col.scrollTop;
+        });
+
+        // Clear out all columns
+        container.innerHTML = '';
+
+        // 1) Sheet header lookups
+        const headers      = window.allTicketHeaders;
+        const statIdx      = headers.indexOf('Status');
+        const apprIdx      = headers.indexOf('Approval Status');
+        const tsIdx        = headers.indexOf('Timestamp');
+        const lobIdx       = headers.indexOf('Line Of Business');
+        const catIdx       = headers.indexOf('Ticket Category');
+        const icIdx        = headers.indexOf('Issue Classification');
+        const rtIdx        = headers.indexOf('Request Type');
+        const prioIdx      = headers.indexOf('Priority Level');
+        let   inchargeIdx  = headers.indexOf('IT In-charge');
+        if (inchargeIdx < 0) inchargeIdx = 16; // fallback if header name changed
+
+        // 2) Build Request-Type → color map
+        const types       = Array.from(new Set(window.allTicketData.map(r => r[rtIdx]).filter(v => v)));
+        const palette     = ['#9FD0E7','#B4E5E7','#FFFDE3','#FFFBD4','#C5E7CD','#A1D4AD','#E7D8FD','#FDE2E2'];
+        const rtColorMap  = {};
+        types.forEach((t,i) => rtColorMap[t] = palette[i % palette.length]);
+
+        // 3) Status columns & colors
+        const allStatuses    = ['Open','Reopened','In Progress','On Hold','Completed','Canceled'];
+        const activeStatuses = allStatuses.filter(status =>
+          window.allTicketData.some(row => {
+            let st = row[statIdx] || 'Open';
+            if ((row[apprIdx]||'').toString().toLowerCase() === 'declined') {
+              st = 'Canceled';
+            }
+            return st === status;
+          })
+        );
+        const statusCols = {
+          Open:          '#6c757d',
+          Reopened:      '#e55353',
+          'In Progress': '#f0ad4e',
+          'On Hold':     '#6f42c1',
+          Completed:     '#5cb85c',
+          Canceled:      '#d9534f'
+        };
+
+        // 4) Create each column container
+        activeStatuses.forEach(status => {
+          const count = window.allTicketData.filter(row => {
+            let st = row[statIdx] || 'Open';
+            if ((row[apprIdx]||'').toString().toLowerCase() === 'declined') st = 'Canceled';
+            return st === status;
+          }).length;
+
+          const col = document.createElement('div');
+          col.className = 'kanban-column';
+          col.innerHTML = `
+            <h3 style="background:${statusCols[status]};">
+              ${status} / ${count}
+            </h3>
+            <div class="kanban-list"></div>
+          `;
+          container.appendChild(col);
+        });
+
+        // 5) Priority border colors
+        const prioColorMap = {
+          Critical: '#dc3545',
+          High:     '#fd7e14',
+          Medium:   '#ffc107',
+          Low:      '#28a745'
+        };
+
+        // 6) Sort tickets descending by numeric ITID
+        const sorted = window.allTicketData
+          .map((_, i) => i)
+          .sort((a, b) => {
+            const na = parseInt(window.allTicketData[a][0].replace('ITID',''), 10);
+            const nb = parseInt(window.allTicketData[b][0].replace('ITID',''), 10);
+            return nb - na;
+          });
+
+        // 7) Build each card
+        sorted.forEach(orig => {
+          const row = window.allTicketData[orig];
+
+          // a) apply Declined→Canceled override
+          let cardStatus = row[statIdx] || 'Open';
+          if ((row[apprIdx]||'').toString().toLowerCase() === 'declined') {
+            cardStatus = 'Canceled';
+          }
+
+          // b) compute lock state
+          const apprVal         = (row[apprIdx]||'').toString();
+          const isReopenLocked  = cardStatus === 'Reopened';
+          const isApprovalLocked = cardStatus === 'Open' && apprVal.startsWith('Pending Approval');
+          const isLocked        = isReopenLocked || isApprovalLocked;
+
+          // c) find target column
+          const colNum = activeStatuses.indexOf(cardStatus);
+          if (colNum < 0) return;
+
+          // d) extract display fields
+          const ticket    = row[0];
+          const ts        = row[tsIdx]   ? new Date(row[tsIdx]).toLocaleDateString() : '';
+          const lob       = row[lobIdx]  || '';
+          const cat       = row[catIdx]  || '';
+          const ic        = row[icIdx]   || '';
+          const rt        = row[rtIdx]   || '';
+          const prio      = row[prioIdx] || '';
+
+          // gather all editors from Logs sheet
+          const editors = window.allLogs
+            .filter(log => log[1] === ticket && log[2] === 'Ticket Edited')
+            .map(log => log[3]);
+          const uniqueEditors = [...new Set(editors)];
+          const editorsHtml = uniqueEditors.map(name => {
+            const initials = name
+              .split(/\s+/)
+              .map(w => w[0])
+              .slice(0,2)
+              .join('')
+              .toUpperCase();
+            return `<div class="initials">${initials}</div>`;
+          }).join('');
+
+          let titleText = '';
+          if (cat === 'Incident') {
+            titleText = row[ headers.indexOf('Issue Description') ] || '';
+          } else {
+            try {
+              const details = JSON.parse(row[ headers.indexOf('Additional Request Details') ]||'{}');
+              titleText = Object.values(details)[0] || '';
+            } catch(e) {
+              titleText = '';
+            }
+          }
+
+          // f) create the card element
+          const card = document.createElement('div');
+          card.className = 'kanban-card' + (isLocked ? ' locked-card' : '');
+          card.style.borderLeft = `4px solid ${prioColorMap[prio] || '#ccc'}`;
+          card.setAttribute('data-ticket', ticket);
+
+          card.innerHTML = `
+            <div class="kanban-header">
+              <strong class="description">${titleText}</strong>
+              <div class="priority-text ${prio.toLowerCase()}">${prio}</div>
+            </div>
+            <div class="meta">
+              <small>${ts}</small><br>
+              <small>${lob}</small>
+            </div>
+            <div class="meta">
+              ${cat ? `<span class="pill pill-${cat.toLowerCase().replace(/\s+/g,'-')}">${cat}</span>` : ''}
+              ${ic  ? `<span class="pill pill-${ic.toLowerCase().replace(/\s+/g,'-')}">${ic}</span>`   : ''}
+              ${rt  ? `<span class="pill" style="background:${rtColorMap[rt]};color:#333;">${rt}</span>` : ''}
+            </div>
+            <div class="footer">
+              <span class="ticket-number">${ticket}</span>
+              <div class="editors-container">${editorsHtml}</div>
+            </div>
+          `;
+
+          // if it's a Reopened (locked) card, append the Validate button
+          if (isReopenLocked) {
+            const validateBtn = document.createElement('button');
+            validateBtn.className = 'btn btn-sm btn-warning ms-2';
+            validateBtn.textContent = 'Validate';
+            validateBtn.addEventListener('click', e => {
+              e.stopPropagation();
+              const di = findDisplayIndex(orig);
+              openValidateReopenModalByIndex(di);
+            });
+            card.querySelector('.footer').appendChild(validateBtn);
+          }
+
+          // inject lock icon if locked
+          if (isLocked) {
+            const icon = document.createElement('i');
+            icon.className = 'bi bi-lock-fill';
+            icon.title = 'Locked';
+            icon.style.marginRight = '0.5rem';
+            card.querySelector('.kanban-header').prepend(icon);
+          }
+
+          // preserve the normal click-to-edit
+          card.addEventListener('click', () => {
+            const di = findDisplayIndex(orig);
+            openEditModalByIndex(di);
+            if (isLocked) {
+              setTimeout(() => {
+                const modal = document.getElementById('editModal');
+                modal.querySelectorAll('input, textarea, select').forEach(el => el.disabled = true);
+              }, 100);
+            }
+          });
+
+          // append into its status column
+          container
+            .children[colNum]
+            .querySelector('.kanban-list')
+            .appendChild(card);
+        });
+
+        // ─── Restore each column’s scrollTop ────────────────────────────
+        container.querySelectorAll('.kanban-column').forEach(col => {
+          const headerText = col.querySelector('h3').textContent;
+          const status = headerText.split('/')[0].trim();
+          if (scrollMap[status] != null) {
+            col.scrollTop = scrollMap[status];
+          }
+        });
+
+      }).getLogs();
+    }
+
+
+
+      // ─── Helper: origIndex → displayIndex ────────────────────────────────
+      function findDisplayIndex(origIndex) {
+        // your global mapping: displayMapping[displayIndex] = origIndex
+        for (let i = 0; i < window.displayMapping.length; i++) {
+          if (window.displayMapping[i] === origIndex) {
+            return i;
+          }
+        }
+        return -1;
+      }
+
+      function renderAdminUsersTable() {
+        const tbody = document.getElementById('adminUsersTableBody');
+        tbody.innerHTML = '';
+        window.adminUsers.forEach((u, i) => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${u.fullName}</td>
+            <td>${u.role}</td>
+            <td class="text-end">
+              <button class="btn btn-sm btn-primary me-1 edit-admin-user-btn"
+                      data-index="${i}">Edit</button>
+              <button class="btn btn-sm btn-warning delete-admin-user-btn"
+                      data-index="${i}">Delete</button>
+            </td>`;
+          tbody.appendChild(tr);
+        });
+      }
+
+      // 2) Delegate Edit / Delete clicks
+      document.getElementById('adminUsersTableBody').addEventListener('click', e => {
+        const btn = e.target;
+        const idx = btn.dataset.index;
+        if (!idx) return;
+
+        // ─── Edit ─────────────────────────────────────────────────────
+        if (btn.matches('.edit-admin-user-btn')) {
+          const u = window.adminUsers[idx];
+          document.getElementById('editUserIndex').value    = idx;
+          document.getElementById('editUserFullName').value = u.fullName;
+          document.getElementById('editUserUsername').value = u.username;
+          document.getElementById('editUserPassword').value = '';
+          document.getElementById('editUserEmail').value    = u.email;
+          document.getElementById('editUserDept').value     = u.department;
+          document.getElementById('editUserEmpId').value    = u.empId;
+          document.getElementById('editUserRole').value     = u.role;
+          new bootstrap.Modal(
+            document.getElementById('editAdminUserModal')
+          ).show();
+        }
+
+        // ─── Delete ────────────────────────────────────────────────────
+        if (btn.matches('.delete-admin-user-btn')) {
+          const u = window.adminUsers[idx];
+          document.getElementById('deleteUserName').textContent = u.fullName;
+          document.getElementById('deleteUserIndex').value     = idx;
+          new bootstrap.Modal(
+            document.getElementById('deleteAdminUserConfirmModal')
+          ).show();
+        }
+      });
+
+      // 3) Confirm Delete
+      document.getElementById('confirmDeleteAdminUserBtn')
+        .addEventListener('click', function() {
+          const btn = this;
+          showButtonLoading(btn);
+
+          const idx = +document.getElementById('deleteUserIndex').value;
+          const removed = window.adminUsers.splice(idx, 1)[0];
+
+          google.script.run
+            .withSuccessHandler(() => {
+              hideButtonLoading(btn);
+              bootstrap.Modal.getInstance(
+                document.getElementById('deleteAdminUserConfirmModal')
+              ).hide();
+              renderAdminUsersTable();
+              showSuccessToast(`Deleted ${removed.fullName}.`);
+              // persist the change
+              google.script.run.updateAdminUsers(window.adminUsers);
+            })
+            .updateAdminUsers(window.adminUsers);
+        });
+
+      // 4) Save Edit
+      document.getElementById('saveAdminUserBtn')
+        .addEventListener('click', function() {
+          const btn = this;
+          showButtonLoading(btn);
+
+          const idx = +document.getElementById('editUserIndex').value;
+          const u   = window.adminUsers[idx];
+          // collect updated fields
+          const updated = {
+            fullName:   document.getElementById('editUserFullName').value.trim(),
+            username:   u.username,  // immutable
+            email:      document.getElementById('editUserEmail').value.trim(),
+            department: document.getElementById('editUserDept').value.trim(),
+            empId:      document.getElementById('editUserEmpId').value.trim(),
+            role:       document.getElementById('editUserRole').value,
+            // password left blank → no change
+            password:   document.getElementById('editUserPassword').value
+          };
+
+          // overwrite in-array
+          window.adminUsers[idx] = updated;
+
+          // persist basic fields
+          google.script.run
+            .withSuccessHandler(() => {
+              hideButtonLoading(btn);
+              bootstrap.Modal.getInstance(
+                document.getElementById('editAdminUserModal')
+              ).hide();
+              renderAdminUsersTable();
+              showSuccessToast('User updated.');
+
+              // if they entered a new password, call your password‐change endpoint
+              if (updated.password) {
+                showGlobalLoading();
+                google.script.run
+                  .withSuccessHandler(() => hideGlobalLoading())
+                  .changeAdminPassword({
+                    username: u.username,
+                    oldPassword: '',     // you’ll need to adjust server‐side to allow admin resets
+                    newPassword: updated.password
+                  });
+              }
+            })
+            .updateAdminUsers(window.adminUsers);
+        });
+
+    // Global sort function
+    function toggleSortTicketOrder() {
+      window.sortTicketOrder = (window.sortTicketOrder === "asc") ? "desc" : "asc";
+      buildTicketsTable();
+    }
+    window.toggleSortTicketOrder = toggleSortTicketOrder;
+
+     // ─── Dim the parent “Manage Admin Users” when edit/delete popups show ───
+    ['editAdminUserModal','deleteAdminUserConfirmModal'].forEach(childId => {
+      const child = document.getElementById(childId);
+      child.addEventListener('show.bs.modal', () => {
+        document.getElementById('manageUsersModal').classList.add('dimmed');
+      });
+      child.addEventListener('hidden.bs.modal', () => {
+        document.getElementById('manageUsersModal').classList.remove('dimmed');
+      });
+    });
+
+    // ─── show/hide password in Edit-Admin-User modal ─────────────────
+    const pwField  = document.getElementById("editUserPassword");
+    const pwToggle = document.getElementById("toggleEditPassword");
+
+    pwToggle.addEventListener("click", () => {
+      const icon = pwToggle.querySelector("i");
+      if (pwField.type === "password") {
+        pwField.type = "text";
+        icon.classList.replace("bi-eye", "bi-eye-slash");
+      } else {
+        pwField.type = "password";
+        icon.classList.replace("bi-eye-slash", "bi-eye");
+      }
+    });
+
+  });
+
+    // ─── Validate‐Reopen Handlers ────────────────────────────────────────
+  // these hold the ticket we’re validating
+  let _validateTicketNum, _validatePrevStatus;
+
+  window.openValidateReopenModalByIndex = function(displayIndex) {
+    // figure out which row we’re validating
+    const origIndex = window.displayMapping[displayIndex];
+    const row       = window.allTicketData[origIndex];
+    _validateTicketNum  = row[0];
+    _validatePrevStatus = window._reopenPrevStatuses[row[0]] || row[15];
+
+    // build the table of all original fields, except Solution/Remarks
+    let html = '<table class="table table-bordered">';
+    window.allTicketHeaders.forEach((h, i) => {
+      if (!row[i] || h === "Solution/Remarks") return;
+
+      let cellHtml = "";
+
+      // 1) Attachments → paper-clip icons
+      if (h === "Attachment") {
+        const links = row[i]
+          .toString()
+          .split(",")
+          .map(u => u.trim())
+          .filter(u => u);
+        cellHtml = '<div class="d-flex">';
+        links.forEach(url => {
+          cellHtml += `
+            <a href="${url}" target="_blank" class="me-2">
+              <i class="bi bi-paperclip" style="font-size:1.2em;"></i>
+            </a>`;
+        });
+        cellHtml += '</div>';
+      }
+      // 2) Additional Request Details → pretty-print JSON
+      else if (h === "Additional Request Details") {
+        try {
+          const detailsObj = JSON.parse(row[i]);
+          cellHtml = '<div>';
+          Object.entries(detailsObj).forEach(([key, val]) => {
+            if (val) {
+              const label = key
+                .replace(/([A-Z])/g, ' $1')       // split camelCase
+                .replace(/^./, c => c.toUpperCase()); // capitalize first letter
+              cellHtml += `<div><strong>${label}:</strong> ${val}</div>`;
+            }
+          });
+          cellHtml += '</div>';
+        } catch (e) {
+          // invalid JSON fallback
+          cellHtml = row[i];
+        }
+      }
+      // 3) everything else
+      else {
+        cellHtml = row[i];
+      }
+
+      html += `<tr><th>${h}</th><td>${cellHtml}</td></tr>`;
+    });
+    html += '</table>';
+
+    // append the original reopen reason, if any
+    if (row[17]) {
+      html += `
+        <div style="
+          background-color: #c8e1cc;
+          border-radius: 4px;
+          padding: 10px;
+          margin-top: 10px;
+        ">
+          <strong>Reopen Reason:</strong><br>
+          ${row[17]}
+        </div>
+      `;
+    }
+
+    document.getElementById('validateReopenBody').innerHTML = html;
+    new bootstrap.Modal(document.getElementById('validateReopenModal')).show();
+  };
+
+
+
+// Valid Reopen
+document
+  .getElementById('confirmValidReopenBtn')
+  .addEventListener('click', function() {
+    const btn    = this;
+    const ticket = _validateTicketNum;
+    const prev   = _validatePrevStatus === 'Reopened' ? 'Open' : _validatePrevStatus;
+    const admin  = window.loggedInAdmin;
+
+    showButtonLoading(btn);
+
+    google.script.run
+      .withSuccessHandler(function() {
+        // log the validation
+        google.script.run.logAction(
+          ticket,
+          'Reopen Validation',
+          admin,
+          'Reopen Valid',
+          '',
+          ''
+        );
+        delete window._reopenPrevStatuses[ticket];
+        loadTickets();
+        showSuccessToast(`Ticket ${ticket} has been validated and unlocked.`);
+        bootstrap.Modal
+          .getInstance(document.getElementById('validateReopenModal'))
+          .hide();
+        hideButtonLoading(btn);
+      })
+      .withFailureHandler(function(err) {
+        showSuccessToast('Error validating reopen: ' + err.message, true);
+        hideButtonLoading(btn);
+      })
+      .updateTicket(
+        ticket,
+        prev,
+        admin,
+        'Reopen Valid',
+        'Valid Reopen'
+      );
+  });
+
+  // Invalid Reopened → hide validate modal and show reason modal
+document
+  .getElementById('confirmInvalidReopenBtn')
+  .addEventListener('click', function() {
+    // first hide the Validate popup
+    bootstrap.Modal
+      .getInstance(document.getElementById('validateReopenModal'))
+      .hide();
+    // then show the Invalid-Reason modal
+    new bootstrap.Modal(
+      document.getElementById('invalidReasonModal')
+    ).show();
+  });
+
+
+// INVALID reopen → ask reason, then submit
+document
+  .getElementById('submitInvalidReasonBtn')
+  .addEventListener('click', function() {
+    const btn    = this;
+    const ticket = _validateTicketNum;
+    const reason = document.getElementById('invalidReasonText').value.trim();
+    const admin  = window.loggedInAdmin;
+
+    if (!reason) {
+      showSuccessToast('Please enter a reason for marking this Reopen invalid.', true);
+      return;
+    }
+
+    showButtonLoading(btn);
+
+    google.script.run
+      .withSuccessHandler(function() {
+        // 1) Log the invalid reopen
+        google.script.run.logAction(
+          ticket,                // Request Number
+          'Reopen Validation',   // Action
+          admin,                 // Performed By
+          'Reopen Invalid',      // Details
+          '',                    // Remarks blank
+          ''                     // Edit Reason blank
+        );
+
+        // 2) UI cleanup
+        delete window._reopenPrevStatuses[ticket];
+        loadTickets();
+        showSuccessToast(`Ticket ${ticket} marked invalid.`);
+        bootstrap.Modal
+          .getInstance(document.getElementById('invalidReasonModal'))
+          .hide();
+
+        hideButtonLoading(btn);
+      })
+      .withFailureHandler(function(err) {
+        showSuccessToast('Error marking invalid: ' + err.message, true);
+        hideButtonLoading(btn);
+      })
+      .updateTicket(
+        ticket,
+        'Completed',
+        admin,
+        reason,            // resolutionRemarks
+        'Invalid Reopen'   // editReason
+      );
+  });
+
+</script>
+</div>
+</body>
+</html>

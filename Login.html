@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+  <body style="font-family:Arial,sans-serif;text-align:center;padding:12px;">
+    <form id="loginForm" onsubmit="submitPw(); return false;">
+      <input type="password" id="pw" placeholder="Password"
+             style="width:100%;padding:6px;font-size:14px;" autofocus>
+      <div id="msg" style="color:red;font-size:12px;margin-top:8px;"></div>
+      <button type="submit" style="margin-top:12px;padding:6px 12px;">
+        Submit
+      </button>
+    </form>
+
+    <script>
+      // Instead of reloading, this will navigate the whole sheet window away
+      function closeSpreadsheet() {
+        try {
+          window.top.location.href = 'about:blank';
+        } catch (e) {
+          window.parent.location.href = 'about:blank';
+        }
+      }
+
+      // If the dialog unloads (× clicked), redirect the parent
+      window.addEventListener('beforeunload', closeSpreadsheet);
+      window.addEventListener('unload',        closeSpreadsheet);
+
+      function submitPw() {
+        document.getElementById("msg").textContent = "";
+        const pw = document.getElementById("pw").value;
+        google.script.run
+          .withSuccessHandler(() => {
+            // on success, remove those unload handlers so we don't close
+            window.removeEventListener('beforeunload', closeSpreadsheet);
+            window.removeEventListener('unload',        closeSpreadsheet);
+            google.script.host.close();
+          })
+          .withFailureHandler(err => {
+            document.getElementById("msg").textContent = err.message;
+          })
+          .checkPassword(pw);
+      }
+    </script>
+  </body>
+</html>
