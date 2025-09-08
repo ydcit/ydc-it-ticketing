@@ -3,6 +3,28 @@
 // Style for email cards
 var EMAIL_CARD_STYLE = 'max-width:600px;margin:40px auto;padding:20px;border:1px solid #ddd;border-radius:8px;box-shadow:0 2px 8px rgba(0,0,0,0.1);background:#fff;font-family:Arial,sans-serif;';
 
+// One-time: set a random salt into Script Properties.
+// Run initAuthSalt() once from the editor, then leave it alone.
+function initAuthSalt() {
+  var rand = Utilities.getUuid() + ':' + Utilities.getUuid();
+  PropertiesService.getScriptProperties().setProperty('AUTH_SALT', rand);
+  return 'AUTH_SALT set.';
+}
+
+function getAuthSalt_() {
+  var salt = PropertiesService.getScriptProperties().getProperty('AUTH_SALT');
+  if (!salt) throw new Error('AUTH_SALT not set. Run initAuthSalt() once.');
+  return salt;
+}
+
+// Canonical hash for admin passwords (salted SHA-256 → base64)
+function hashAdminPassword_(plain) {
+  var salt = getAuthSalt_();
+  return Utilities.base64Encode(
+    Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, salt + String(plain))
+  );
+}
+
 // Main entry point. Determines which page to serve.
 function doGet(e) {
   var page = e.parameter.page || 'index';
@@ -48,7 +70,6 @@ function getSpreadsheet() {
       };
     });
   }
-
 
 
 // Auto-generate the next ticket number.
@@ -262,6 +283,132 @@ function createTicket(ticketData) {
   }
 
   return ticketNumber;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Dynamic Questions Schema — read from "Dynamic Questions" sheet
+// Columns: Category | RequestType | Subtype | Key | Label | Type | Required | Options | Placeholder | Help | Order
+// ─────────────────────────────────────────────────────────────────────────────
+
+function getDQMeta(category) {
+  // Returns all request types and their subtypes for a given category
+  category = String(category || '').trim();
+  var rows = _dqLoad_();
+  var map = {}; // { RequestType: Set(subtypes) }
+  rows.forEach(function(r) {
+    if (category && r.Category !== category) return;
+    if (!map[r.RequestType]) map[r.RequestType] = new Set();
+    if (r.Subtype) map[r.RequestType].add(r.Subtype);
+  });
+
+  var requestTypes = Object.keys(map).sort().map(function(rt) {
+    return {
+      name: rt,
+      subtypes: Array.from(map[rt]).sort() // may be empty
+    };
+  });
+  return { requestTypes: requestTypes };
+}
+
+function getDQFields(category, requestType, subtype) {
+  // Returns field objects to render for the selected combo
+  var rows = _dqLoad_().filter(function(r) {
+    if (category && r.Category !== category) return false;
+    if (requestType && r.RequestType !== requestType) return false;
+    // subtype match: if schema row has Subtype, it must equal the chosen subtype.
+    // If schema Subtype is blank, show it for all subtypes of that RequestType.
+    if (r.Subtype && subtype && r.Subtype !== subtype) return false;
+    if (r.Subtype && !subtype) return false; // row expects a subtype, user hasn't chosen yet
+    return true;
+  });
+
+  // sort by Order (numeric; missing -> 9999)
+  rows.sort(function(a, b) {
+    var oa = isNaN(a.Order) ? 9999 : Number(a.Order);
+    var ob = isNaN(b.Order) ? 9999 : Number(b.Order);
+    return oa - ob;
+  });
+
+  // expand Options (LIST:/SHEET:)
+  rows.forEach(function(r) {
+    r.Options = _dqParseOptions_(r.Options);
+    r.Required = _dqToBool_(r.Required);
+  });
+
+  return rows;
+}
+
+function _dqLoad_() {
+  var ss = getSpreadsheet();
+  var sh = ss.getSheetByName('Dynamic Questions');
+  if (!sh) return [];
+  var values = sh.getDataRange().getValues();
+  if (values.length < 2) return [];
+  var h = values[0];
+  var COLS = {
+    Category:     h.indexOf('Category'),
+    RequestType:  h.indexOf('RequestType'),
+    Subtype:      h.indexOf('Subtype'),
+    Key:          h.indexOf('Key'),
+    Label:        h.indexOf('Label'),
+    Type:         h.indexOf('Type'),
+    Required:     h.indexOf('Required'),
+    Options:      h.indexOf('Options'),
+    Placeholder:  h.indexOf('Placeholder'),
+    Help:         h.indexOf('Help'),
+    Order:        h.indexOf('Order')
+  };
+  var out = [];
+  for (var i = 1; i < values.length; i++) {
+    var r = values[i];
+    if (!r[COLS.Category] || !r[COLS.RequestType] || !r[COLS.Key]) continue;
+    out.push({
+      Category:    String(r[COLS.Category]).trim(),
+      RequestType: String(r[COLS.RequestType]).trim(),
+      Subtype:     String(r[COLS.Subtype] || '').trim(),
+      Key:         String(r[COLS.Key]).trim(),
+      Label:       String(r[COLS.Label] || '').trim(),
+      Type:        String(r[COLS.Type] || 'text').trim().toLowerCase(),
+      Required:    r[COLS.Required],
+      Options:     String(r[COLS.Options] || '').trim(),
+      Placeholder: String(r[COLS.Placeholder] || '').trim(),
+      Help:        String(r[COLS.Help] || '').trim(),
+      Order:       r[COLS.Order]
+    });
+  }
+  return out;
+}
+
+function _dqParseOptions_(optStr) {
+  if (!optStr) return [];
+  if (/^LIST:/i.test(optStr)) {
+    // LIST:Opt1|Opt2|Opt3
+    return optStr.replace(/^LIST:/i, '').split('|').map(function(s){ return s.trim(); }).filter(Boolean);
+  }
+  if (/^SHEET:/i.test(optStr)) {
+    // SHEET:SheetName!A2:A
+    var spec = optStr.replace(/^SHEET:/i, '').trim();
+    var m = /^([^!]+)!(.+)$/.exec(spec);
+    if (!m) return [];
+    var sh = getSpreadsheet().getSheetByName(m[1].trim());
+    if (!sh) return [];
+    var rng = sh.getRange(m[2].trim());
+    var vals = rng.getValues().flat().map(function(v){ return String(v||'').trim(); }).filter(Boolean);
+    // de-dupe while preserving order
+    var seen = {};
+    return vals.filter(function(v){ if (seen[v]) return false; seen[v]=1; return true; });
+  }
+  // raw comma/pipe fallback
+  if (optStr.indexOf('|') >= 0) {
+    return optStr.split('|').map(function(s){ return s.trim(); }).filter(Boolean);
+  }
+  return optStr.split(',').map(function(s){ return s.trim(); }).filter(Boolean);
+}
+
+function _dqToBool_(v) {
+  if (typeof v === 'boolean') return v;
+  var s = String(v || '').toLowerCase().trim();
+  return (s === 'true' || s === 'y' || s === 'yes' || s === '1');
 }
 
 
@@ -755,6 +902,30 @@ function searchTickets(employeeId) {
     Logger.log("Error in searchTickets: " + e);
     return { headers: [], data: [] };
   }
+}
+
+// Returns only the signed-in requester's tickets (by Raw col 7 = Email Address)
+function requesterGetMyTickets() {
+  var me = Session.getActiveUser().getEmail();
+  if (!me) throw new Error('Must be signed in with Google Workspace.');
+
+  var ss = getSpreadsheet();
+  var sheet = ss.getSheetByName("Raw");
+  if (!sheet) return { headers: [], data: [] };
+
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return { headers: [], data: [] };
+
+  var rng = sheet.getRange(1, 1, lastRow, 21).getValues();
+  var headers = rng.shift().map(function(c){ return c instanceof Date ? c.toISOString() : c; });
+
+  var mine = rng.filter(function(row){
+    return String(row[6]).toLowerCase().trim() === String(me).toLowerCase().trim();
+  }).map(function(row){
+    return row.map(function(c){ return c instanceof Date ? c.toISOString() : (c == null ? "" : String(c)); });
+  });
+
+  return { headers: headers, data: mine };
 }
 
 /**
@@ -1509,40 +1680,32 @@ function getApprovalOverview() {
   return overview;
 }
 
-
-
-/**
- * Returns the SHA-256 hex digest of a string.
- */
-function hashPassword(plain) {
-  // compute raw bytes
-  var raw = Utilities.computeDigest(
-    Utilities.DigestAlgorithm.SHA_256,
-    plain,
-    Utilities.Charset.UTF_8
-  );
-  // convert each byte to two‐digit hex
-  return raw
-    .map(function(byte) {
-      return (byte < 0 ? byte + 256 : byte)
-        .toString(16)
-        .padStart(2, '0');
-    })
-    .join('');
-}
-
-// run once in the Script Editor to re‐hash all existing passwords
+// RUN ONCE ONLY if your Admin Credential sheet currently stores PLAINTEXT passwords.
+// It will convert each Password to a salted base64 SHA-256 hash.
 function upgradeAdminPasswords() {
   var ss    = getSpreadsheet();
   var sheet = ss.getSheetByName("Admin Credential");
   var data  = sheet.getDataRange().getValues();
-  // assume header in row 1
+  if (data.length < 2) return 'No rows to upgrade.';
+
+  var headers = data[0];
+  var COL_PW  = headers.indexOf("Password");
+  if (COL_PW < 0) throw new Error('Column "Password" not found in Admin Credential.');
+
   for (var i = 1; i < data.length; i++) {
-    var plain = data[i][2];
-    var hash  = hashPassword(plain);
-    sheet.getRange(i+1, 3).setValue(hash);
+    var plain = data[i][COL_PW];
+    if (!plain) continue;
+    var str = String(plain);
+    // crude check: if it already looks base64-ish, skip
+    var looksHashed = /^[A-Za-z0-9+/=]{40,}$/.test(str);
+    if (looksHashed) continue;
+
+    var hash = hashAdminPassword_(str);
+    sheet.getRange(i+1, COL_PW+1).setValue(hash);
   }
+  return 'Upgrade complete.';
 }
+
 
 /**
  * Creates a new admin user if empId is allowed.
@@ -1617,18 +1780,23 @@ function sendPasswordResetByEmail(email) {
   if (!sheet) {
     return { success: false, error: "Admin Credential sheet not found." };
   }
+
   var data = sheet.getDataRange().getValues();
-  // data[0] is header: [ FullName, Username, PasswordHash, Email, Department ]
-  for (var i = 1; i < data.length; i++) {
-    var rowEmail = data[i][3];
-    if (rowEmail && rowEmail.toString().toLowerCase().trim() === email.toLowerCase()) {
-      var username = data[i][1];
-      // generate temp pass
+  var headers = data.shift(); // [ FullName, Username, Password, Email Address, Department, Employee ID, Role ]
+  var COL_USER = headers.indexOf("Username");
+  var COL_PW   = headers.indexOf("Password");
+  var COL_MAIL = headers.indexOf("Email Address");
+
+  for (var i = 0; i < data.length; i++) {
+    var rowEmail = (data[i][COL_MAIL] || '').toString().toLowerCase().trim();
+    if (rowEmail && rowEmail === email.toLowerCase()) {
+      var username = data[i][COL_USER];
+
+      // generate temp password & store canonical hash
       var tempPass = Math.random().toString(36).slice(-8);
-      var tempHash = hashPassword(tempPass);
-      // write new hash into column C (index 3 in sheet)
-      sheet.getRange(i + 1, 3).setValue(tempHash);
-      // email it
+      var tempHash = hashItForYou(tempPass);
+      sheet.getRange(i + 2, COL_PW + 1).setValue(tempHash);
+
       MailApp.sendEmail({
         to: email,
         subject: "Your temporary password",
@@ -1643,7 +1811,6 @@ function sendPasswordResetByEmail(email) {
   }
   return { success: false, error: "Email not found." };
 }
-
 
 function changeAdminPassword(o) {
   // verify old password
@@ -1678,17 +1845,18 @@ function updateAdminPassword(o) {
   }
   
   var data = sheet.getDataRange().getValues();
-  // data[0] is header: [ FullName, Username, PasswordHash, Email ]
-  for (var i = 1; i < data.length; i++) {
-    var storedUsername = data[i][1];
+  var headers = data.shift(); // [ FullName, Username, PasswordHash, Email, Department, Employee ID, Role ]
+  var COL_USER = headers.indexOf("Username");
+  var COL_PW   = headers.indexOf("Password");
+
+  for (var i = 0; i < data.length; i++) {
+    var storedUsername = data[i][COL_USER];
     if (storedUsername === o.username) {
-      var newHash = hashPassword(o.password);
-      // column 3 = PasswordHash (C)
-      sheet.getRange(i + 1, 3).setValue(newHash);
+      var newHash = hashItForYou(o.password);   // ← canonical
+      sheet.getRange(i + 2, COL_PW + 1).setValue(newHash);
       return { success: true };
     }
   }
-  
   return { success: false, error: "Username not found." };
 }
 
@@ -1878,13 +2046,155 @@ function updateAdminUsers(adminUsers) {
 }
 
 function hashItForYou(plain) {
-  var salt = "YOUR_SALT_OR_RANDOM";
-  return Utilities.base64Encode(
-    Utilities.computeDigest(
-      Utilities.DigestAlgorithm.SHA_256,
-      salt + plain
-    )
-  );
+  return hashAdminPassword_(plain);
+}
+
+// Create a session token and bind identity (8h TTL)
+function issueSessionToken_(identityObj) {
+  var token = Utilities.getUuid() + "." + Utilities.getUuid();
+  var cache = CacheService.getScriptCache();
+  cache.put('sess:' + token, JSON.stringify(identityObj), 8 * 60 * 60); // 8 hours
+  return token;
+}
+
+// Read identity from a token (or null if missing/expired)
+function readSession_(token) {
+  if (!token) return null;
+  var raw = CacheService.getScriptCache().get('sess:' + token);
+  return raw ? JSON.parse(raw) : null;
+}
+
+// Destroy a session token
+function destroySession(token) {
+  if (!token) return false;
+  CacheService.getScriptCache().remove('sess:' + token);
+  return true;
+}
+
+// Minimal guard for Step 1.2 (token only; NO role checks yet)
+function requireSession_(token) {
+  var ident = readSession_(token);
+  if (!ident) throw new Error('Unauthorized: missing/expired session.');
+  return ident; // { fullName, username, email, empId, role }
+}
+
+// (Optional) expose identity to client after login
+function getSessionIdentity(token) {
+  var ident = requireSession_(token);
+  return ident;
+}
+
+// === SECURITY LAYER · 1.3 · Role guards (PLACE RIGHT BELOW 1.2 session helpers) ===
+
+// True if Employee ID exists in AllowedAdmins!A
+function isAllowedAdminEmpId_(empId) {
+  var ss = getSpreadsheet();
+  var sh = ss.getSheetByName("AllowedAdmins");
+  if (!sh) return false;
+  var last = sh.getLastRow();
+  if (last < 2) return false;
+  var vals = sh.getRange(2, 1, last - 1, 1).getValues().flat();
+  return vals.some(function(v){ return String(v).trim() === String(empId).trim(); });
+}
+
+// Throws if no valid session OR empId is not in AllowedAdmins
+function requireIT_(token) {
+  var ident = readSession_(token);
+  if (!ident) throw new Error('Unauthorized: missing/expired session.');
+  if (!ident.empId) throw new Error('Forbidden: admin identity missing Employee ID.');
+  if (!isAllowedAdminEmpId_(ident.empId)) throw new Error('Forbidden: not in AllowedAdmins.');
+  return ident; // { fullName, username, email, empId, role }
+}
+
+// Requester guard (use for endpoints where a user should only see their own data)
+function requireRequester_(targetEmail) {
+  var me = Session.getActiveUser().getEmail();
+  if (!me) throw new Error('Must be signed in with Google Workspace.');
+  if (String(me).toLowerCase().trim() !== String(targetEmail).toLowerCase().trim()) {
+    throw new Error('You may only access your own tickets.');
+  }
+  return me;
+}
+
+
+// === SECURITY LAYER · 1.2 · Login that returns a token ===
+function loginAdmin(username, password) {
+  var ss    = getSpreadsheet();
+  var sheet = ss.getSheetByName("Admin Credential");
+  if (!sheet) return { success: false, error: "Admin Credential sheet not found." };
+
+  var rows    = sheet.getDataRange().getValues();
+  var headers = rows.shift(); // [ Full Name, Username, Password, Email Address, Department, Employee ID, Role ]
+  var COL_FULL = headers.indexOf("Full Name");
+  var COL_USER = headers.indexOf("Username");
+  var COL_PW   = headers.indexOf("Password");       // hashed
+  var COL_MAIL = headers.indexOf("Email Address");
+  var COL_DEPT = headers.indexOf("Department");
+  var COL_EID  = headers.indexOf("Employee ID");
+  var COL_ROLE = headers.indexOf("Role");
+
+  var hashedInput = hashItForYou(password);
+
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    if (String(r[COL_USER]) === String(username)) {
+      if (String(r[COL_PW]) === String(hashedInput)) {
+        var ident = {
+          fullName: r[COL_FULL],
+          username: r[COL_USER],
+          email:    r[COL_MAIL],
+          empId:    r[COL_EID],
+          role:     r[COL_ROLE] || "Admin"
+        };
+        var token = issueSessionToken_(ident);
+        return {
+          success: true,
+          token: token,
+          fullName: ident.fullName,
+          username: ident.username,
+          email:    ident.email,
+          role:     ident.role
+        };
+      }
+      break;
+    }
+  }
+  return { success: false, error: "Invalid username or password." };
+}
+
+// === SECURITY LAYER · 1.2 · Secure wrappers (requireSession_ only) ===
+
+// Admin: get full ticket table
+function adminGetAllTickets(token) {
+  requireIT_(token);
+  return getAllTickets();
+}
+
+function adminGetLogs(token) {
+  requireIT_(token);
+  return getLogs();
+}
+
+function adminExportLogs(token, itid) {
+  requireIT_(token);
+  return exportLogs(itid);
+}
+
+function adminResendPendingApprovals(token) {
+  requireIT_(token);
+  resendPendingApprovals();
+  return { success: true };
+}
+
+function adminUpdateTicket(token, ticketNumber, newStatus, itIncharge, resolutionRemarks, changeDetails) {
+  var ident = requireIT_(token);
+  if (!itIncharge) itIncharge = ident.email || ident.username; // your 1.2 behavior
+  return updateTicket(ticketNumber, newStatus, itIncharge, resolutionRemarks, changeDetails);
+}
+
+function adminGetDashboardData(token, granularity, fromMonth, toMonth) {
+  requireIT_(token);
+  return getDashboardData(granularity, fromMonth, toMonth);
 }
 
 
@@ -2084,3 +2394,4 @@ function getBusinessUnits() {
   var unique = Array.from(new Set(values));
   return unique.sort();
 }
+
