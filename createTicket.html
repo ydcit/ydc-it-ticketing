@@ -41,6 +41,7 @@
       .input-group-text { border-left: 0; }
       .input-group-text .btn { border: none; box-shadow: none; }
       .subtle { color:#6c757d; font-size:.9rem; }
+
       /* Loading overlay + skeletons */
       .loader-overlay { position: relative; }
       .loader-overlay .overlay {
@@ -60,7 +61,6 @@
       .skel-line { height: 1rem; margin-bottom: .5rem; }
       .skel-input { height: 2.4rem; }
       @keyframes shimmer { 100% { transform: translateX(100%); } }
-
     </style>
   </head>
   <body>
@@ -122,10 +122,10 @@
                   </div>
                   <div class="col-md-6">
                     <label for="officeSite" class="form-label">Office Site</label>
-                    <select class="form-control" id="officeSite" name="officeSite" required>
-                      <option value="">--Select Office Site--</option>
-                      <option>Yngen</option><option>Sabak</option><option>ATS</option><option>Richmond</option><option>Richville</option><option>UB</option><option>The Rocks</option>
+                    <select class="form-control" id="officeSite" name="officeSite" required disabled>
+                      <option value="">Loading…</option>
                     </select>
+                    <div class="subtle mt-1" id="officeSiteHint"></div>
                   </div>
                 </div>
                 <div class="row mb-3">
@@ -139,10 +139,10 @@
                       <i class="bi bi-info-circle-fill info-icon" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-html="true" data-bs-sanitize="false"
                          title="(P1) Critical – all users blocked<br>(P2) High – some users/locations blocked<br>(P3) Medium – partial impact<br>(P4) Low – general requests"></i>
                     </label>
-                    <select class="form-control" id="priorityLevel" name="priorityLevel" required>
-                      <option value="">--Select Priority--</option>
-                      <option>Critical</option><option>High</option><option>Medium</option><option>Low</option>
+                    <select class="form-control" id="priorityLevel" name="priorityLevel" required disabled>
+                      <option value="">Loading…</option>
                     </select>
+                    <div class="subtle mt-1" id="priorityHint"></div>
                   </div>
                 </div>
 
@@ -162,7 +162,7 @@
                   </div>
                 </div>
 
-                <!-- Incident (keep your three basics for now) -->
+                <!-- Incident -->
                 <div id="incidentFields" class="hidden">
                   <div class="row mb-3">
                     <div class="col-md-6">
@@ -171,9 +171,8 @@
                     </div>
                     <div class="col-md-6">
                       <label for="issueClassification" class="form-label">Classification</label>
-                      <select class="form-control" id="issueClassification" name="issueClassification">
-                        <option value="">--Select--</option>
-                        <option>Hardware</option><option>Software</option><option>Server</option><option>Network</option><option>IT Asset</option><option>Other</option>
+                      <select class="form-control" id="issueClassification" name="issueClassification" disabled>
+                        <option value="">Loading…</option>
                       </select>
                     </div>
                   </div>
@@ -185,7 +184,6 @@
 
                 <!-- Service Request (fully dynamic from sheet) -->
                 <div id="serviceFields" class="hidden loader-overlay">
-                  <!-- overlay shown while fetching meta/fields -->
                   <div class="overlay" aria-live="polite" aria-busy="true">
                     <div class="text-center">
                       <div class="spinner-border" role="status" aria-label="Loading"></div>
@@ -289,7 +287,6 @@
         if (!sectionEl) return;
         sectionEl.classList.toggle('loading', !!isLoading);
       }
-
       function renderSkeleton(count = 4) {
         return Array.from({ length: count }).map(() => `
           <div class="mb-3">
@@ -298,6 +295,7 @@
           </div>
         `).join('');
       }
+      function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 
       // Tooltips
       document.addEventListener('DOMContentLoaded', () => {
@@ -315,6 +313,56 @@
         if (unique.type === 'password') { unique.type = 'text'; icon.classList.replace('bi-eye', 'bi-eye-slash'); }
         else { unique.type = 'password'; icon.classList.replace('bi-eye-slash', 'bi-eye'); }
       });
+
+      // ─── NEW: Picklists loader for Office Site / Priority / Classification ──
+      function setSelectOptions(selectEl, values, placeholder='--Select--') {
+        if (!selectEl) return;
+        const oldVal = selectEl.value;
+        selectEl.innerHTML = '';
+        const first = document.createElement('option');
+        first.value = ''; first.textContent = placeholder;
+        selectEl.appendChild(first);
+        (values || []).forEach(v => {
+          const o = document.createElement('option');
+          o.value = v; o.textContent = v;
+          selectEl.appendChild(o);
+        });
+        // try to keep value if still present
+        if (values && values.includes(oldVal)) selectEl.value = oldVal;
+      }
+
+      function loadPicklists() {
+        // show loading states
+        $('#officeSite').disabled = true;
+        $('#priorityLevel').disabled = true;
+        $('#issueClassification').disabled = true;
+        $('#officeSite').innerHTML = '<option value="">Loading…</option>';
+        $('#priorityLevel').innerHTML = '<option value="">Loading…</option>';
+        $('#issueClassification').innerHTML = '<option value="">Loading…</option>';
+        $('#officeSiteHint').textContent = '';
+        $('#priorityHint').textContent = '';
+
+        google.script.run
+          .withSuccessHandler(map => {
+            setSelectOptions($('#officeSite'), map.OfficeSite || [], '--Select Office Site--');
+            setSelectOptions($('#priorityLevel'), map.PriorityLevel || [], '--Select Priority--');
+            setSelectOptions($('#issueClassification'), map.IssueClassification || [], '--Select--');
+            $('#officeSite').disabled = false;
+            $('#priorityLevel').disabled = false;
+            $('#issueClassification').disabled = false;
+          })
+          .withFailureHandler(err => {
+            showError('Failed to load picklists: ' + (err.message || err));
+            // fallback UI
+            $('#officeSite').innerHTML = '<option value="">--Select Office Site--</option>';
+            $('#priorityLevel').innerHTML = '<option value="">--Select Priority--</option>';
+            $('#issueClassification').innerHTML = '<option value="">--Select--</option>';
+            $('#officeSite').disabled = false;
+            $('#priorityLevel').disabled = false;
+            $('#issueClassification').disabled = false;
+          })
+          .getPicklists(['OfficeSite','PriorityLevel','IssueClassification']);
+      }
 
       // Verify employee code
       $('#verifyButton').addEventListener('click', function() {
@@ -351,49 +399,53 @@
           $('#issueClassification').disabled = false;
           $('#issueDescription').disabled = false;
         } else if (cat === 'Service Request') {
-        hide($('#incidentFields')); show($('#serviceFields'));
+          hide($('#incidentFields')); show($('#serviceFields'));
 
-        // prep UI
-        $('#requestType').disabled = true;
-        $('#requestType').innerHTML = '<option value="">Loading…</option>';
-        $('#subtypeWrap').classList.add('hidden');
-        $('#subtype').innerHTML = '';
-        $('#additionalQuestions').innerHTML = '';
-        $('#requestTypeHint').innerHTML =
-          '<span class="spinner-border spinner-border-sm me-2"></span>Loading request types…';
+          // prep UI
+          $('#requestType').disabled = true;
+          $('#requestType').innerHTML = '<option value="">Loading…</option>';
+          $('#subtypeWrap').classList.add('hidden');
+          $('#subtype').innerHTML = '';
+          $('#additionalQuestions').innerHTML = '';
+          $('#requestTypeHint').innerHTML =
+            '<span class="spinner-border spinner-border-sm me-2"></span>Loading request types…';
 
-        // turn on overlay
-        setLoading($('#serviceFields'), true);
+          // turn on overlay
+          setLoading($('#serviceFields'), true);
 
-        // fetch meta
-        google.script.run
-          .withSuccessHandler(meta => {
-            const select = $('#requestType');
-            select.innerHTML = '<option value="">--Select Request Type--</option>';
-            (meta.requestTypes || []).forEach(rt => {
-              const opt = document.createElement('option');
-              opt.value = rt.name; opt.textContent = rt.name;
-              select.appendChild(opt);
-            });
-            select.disabled = false;
-            $('#requestTypeHint').textContent = 'Pick a request type to load fields.';
-            setLoading($('#serviceFields'), false);
-          })
-          .withFailureHandler(err => {
-            $('#requestType').innerHTML = '<option value="">--Select Request Type--</option>';
-            $('#requestTypeHint').textContent = '';
-            setLoading($('#serviceFields'), false);
-            showError('Failed to load dynamic questions meta: ' + (err.message || err));
-          })
-          .getDQMeta('Service Request');
+          // fetch meta
+          google.script.run
+            .withSuccessHandler(meta => {
+              const select = $('#requestType');
+              select.innerHTML = '<option value="">--Select Request Type--</option>';
+              (meta.requestTypes || []).forEach(rt => {
+                const opt = document.createElement('option');
+                opt.value = rt.name; opt.textContent = rt.name;
+                select.appendChild(opt);
+              });
+              select.disabled = false;
+              $('#requestTypeHint').textContent = 'Pick a request type to load fields.';
+              setLoading($('#serviceFields'), false);
+            })
+            .withFailureHandler(err => {
+              $('#requestType').innerHTML = '<option value="">--Select Request Type--</option>';
+              $('#requestTypeHint').textContent = '';
+              setLoading($('#serviceFields'), false);
+              showError('Failed to load dynamic questions meta: ' + (err.message || err));
+            })
+            .getDQMeta('Service Request');
         } else {
           hide($('#incidentFields')); hide($('#serviceFields'));
         }
       });
-      // initialize
-      $('#ticketCategory').dispatchEvent(new Event('change'));
 
-      // Request Type -> maybe show Subtype, then render fields
+      // initialize: load picklists + default category state
+      document.addEventListener('DOMContentLoaded', () => {
+        loadPicklists();
+        $('#ticketCategory').dispatchEvent(new Event('change'));
+      });
+
+      // Request Type handlers (unchanged logic, now with loaders)
       $('#requestType').addEventListener('change', function() {
         const cat = $('#ticketCategory').value;
         const req = this.value;
@@ -435,7 +487,6 @@
           .getDQMeta(cat);
       });
 
-      // Subtype change -> render fields
       $('#subtype').addEventListener('change', function() {
         const cat = $('#ticketCategory').value;
         const req = $('#requestType').value;
@@ -533,8 +584,6 @@
         $$('#additionalQuestions [data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el));
       }
 
-      function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
-
       // Attachments → base64 packer
       function filesToJson(fileInput) {
         return new Promise(resolve => {
@@ -543,7 +592,7 @@
           const readers = files.map(file => new Promise(res => {
             const fr = new FileReader();
             fr.onload = () => {
-              const base64 = fr.result.split(',')[1]; // remove "data:*/*;base64,"
+              const base64 = fr.result.split(',')[1];
               res({ name: file.name, type: file.type, data: base64 });
             };
             fr.readAsDataURL(file);
@@ -600,8 +649,7 @@
             .withSuccessHandler(ticketNumber => {
               btn.disabled = false; spn.classList.add('hidden'); txt.textContent = 'Submit Ticket';
               showSuccess('Your ticket <b>' + ticketNumber + '</b> has been submitted successfully.');
-              // Reset form minimal
-              // (keep email/site for convenience)
+              // Reset some fields
               $('#issueDescription').value = '';
               $('#remarks').value = '';
               $('#additionalQuestions').innerHTML = '';

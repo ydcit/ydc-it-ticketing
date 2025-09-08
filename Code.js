@@ -85,6 +85,71 @@ function getNextTicketNumber() {
   return "ITID" + String(number + 1).padStart(6, "0");
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Picklists (data-driven choices for OfficeSite, PriorityLevel, IssueClassification)
+// Sheet: "Picklists"
+// Columns: Name | Options | Sort
+//  - Name: key identifier (e.g., "OfficeSite", "PriorityLevel", "IssueClassification")
+//  - Options: supports LIST:a|b|c, SHEET:Sheet!A2:A, or comma/pipe-delimited text
+//  - Sort: Y/Yes/True/1 to sort ascending (optional)
+// ─────────────────────────────────────────────────────────────────────────────
+
+function _plLoad_() {
+  var ss = getSpreadsheet();
+  var sh = ss.getSheetByName('Picklists');
+  if (!sh) return [];
+  var values = sh.getDataRange().getValues();
+  if (values.length < 2) return [];
+  var h = values[0];
+  var COLS = {
+    Name:    h.indexOf('Name'),
+    Options: h.indexOf('Options'),
+    Sort:    h.indexOf('Sort')
+  };
+  var out = [];
+  for (var i = 1; i < values.length; i++) {
+    var r = values[i];
+    var name = String(r[COLS.Name] || '').trim();
+    if (!name) continue;
+    out.push({
+      Name:    name,
+      Options: String(r[COLS.Options] || '').trim(),
+      Sort:    r[COLS.Sort]
+    });
+  }
+  return out;
+}
+
+/**
+ * Returns an object mapping each requested key to an array of choices.
+ * Example:
+ *   getPicklists(['OfficeSite','PriorityLevel','IssueClassification'])
+ * → { OfficeSite:[...], PriorityLevel:[...], IssueClassification:[...] }
+ */
+function getPicklists(keys) {
+  var want = (Array.isArray(keys) && keys.length) ? keys.map(String) : null;
+  var rows = _plLoad_();
+  var map = {};
+
+  rows.forEach(function(r) {
+    if (want && want.indexOf(r.Name) === -1) return;
+    var opts = _dqParseOptions_(r.Options);      // reuse your DQ parser
+    var sorted = _dqToBool_(r.Sort);
+    if (sorted) {
+      opts = (opts || []).slice().sort(function(a,b){
+        return String(a).localeCompare(String(b));
+      });
+    }
+    map[r.Name] = opts || [];
+  });
+
+  // ensure requested keys exist in the response even if missing in sheet
+  if (want) {
+    want.forEach(function(k){ if (!map[k]) map[k] = []; });
+  }
+  return map;
+}
+
 /**
  * Process attachments (passed as a JSON string) and save files to the Drive folder.
  * Returns a comma-separated string of file URLs.
